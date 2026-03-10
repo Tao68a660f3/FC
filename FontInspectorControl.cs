@@ -47,7 +47,7 @@ namespace FC
             // 2. 字库类型选择 (关键！)
             panel.Controls.Add(CreateLabel("字库编码类型:"));
             cmbEncoding = new ComboBox { Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbEncoding.Items.AddRange(new string[] { "Custom GBK (22084字)", "Standard GB2312 (6768字)" });
+            cmbEncoding.Items.AddRange(new string[] { "Custom GBK", "Standard GB2312" });
             cmbEncoding.SelectedIndex = 0;
             panel.Controls.Add(cmbEncoding);
 
@@ -83,21 +83,46 @@ namespace FC
             lblOffsetInfo = new Label { Text = "等待加载字库...", AutoSize = true, ForeColor = Color.Cyan, Font = new Font("Consolas", 9) };
             panel.Controls.Add(lblOffsetInfo);
 
-            // 6. 代码预览
-            panel.Controls.Add(CreateLabel("C语言寻址代码:"));
-            txtCode = new TextBox { Multiline = true, Width = 280, Height = 120, ReadOnly = true, BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.LightGray, Font = new Font("Consolas", 9) };
-            panel.Controls.Add(txtCode);
+            main.Controls.Add(panel, 0, 0);
 
-            // --- 右侧预览区 ---
+            // --- 右侧容器 (改为上下布局) ---
+            TableLayoutPanel rightContainer = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 2
+            };
+            // 上方 75% 给点阵预览，下方 25% 给代码
+            rightContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 75f));
+            rightContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+
+            // 1. 点阵预览
             picInspect = new PictureBox
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.Black,
-                SizeMode = PictureBoxSizeMode.CenterImage // 居中显示原始点阵，或用Zoom放大
+                SizeMode = PictureBoxSizeMode.CenterImage
+            };
+            rightContainer.Controls.Add(picInspect, 0, 0);
+
+            // 2. C 语言代码预览 (移到这里)
+            txtCode = new TextBox
+            {
+                Multiline = true,
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(20, 20, 20),
+                ForeColor = Color.LightGray,
+                Font = new Font("Consolas", 10),
+                BorderStyle = BorderStyle.None,
+                ScrollBars = ScrollBars.Vertical
             };
 
-            main.Controls.Add(panel, 0, 0);
-            main.Controls.Add(picInspect, 1, 0);
+            // 给代码框加个简单的边距感
+            Panel codeWrapper = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 0, 10, 10) };
+            codeWrapper.Controls.Add(txtCode);
+            rightContainer.Controls.Add(codeWrapper, 0, 1);
+
+            main.Controls.Add(rightContainer, 1, 0);
             this.Controls.Add(main);
         }
 
