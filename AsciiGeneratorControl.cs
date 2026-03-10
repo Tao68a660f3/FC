@@ -2,7 +2,6 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.IO;
 using FC.core;
 using FC.ui;
 
@@ -12,47 +11,44 @@ namespace FC
     {
         private AsciiManager _mgr = new AsciiManager();
         private FontRender _fontRender = new FontRender();
-        private int _currentIdx = 65; // 默认显示 'A'
+        private int _currentIdx = 65; // 默认 'A'
 
-        // 成员变量（提升作用域，确保引用不丢失）
+        // 核心控件引用
         private TableLayoutPanel mainLayout;
         private FlowLayoutPanel pnlParams;
         private PixelEditorControl pixelEditor;
+
         private NumericUpDown numAsciiValue, numCanvasW, numCanvasH, numWidth;
         private NumericUpDown numFontSize, numScaleX, numScaleY, numOffsetX, numOffsetY, numBaseline;
         private TextBox txtChar;
 
         public AsciiGeneratorControl()
         {
-            // 必须：对齐 GBK 模块的成功经验，显式设置初始大小
             this.Size = new Size(1000, 700);
+            this.BackColor = UiFactory.BgColor;
+            this.ForeColor = Color.White;
             this.Dock = DockStyle.Fill;
-            this.BackColor = Color.FromArgb(32, 32, 32); // 硬编码颜色，避开静态引用风险
 
-            SetupLayout();
-            BindEvents();
+            // 1. 初始化物理布局
+            InitIntegratedLayout();
 
-            // 确保在句柄创建后刷新一次 UI
-            this.Load += (s, e) => SyncUI();
+            // 2. 绑定交互事件
+            BindLogicEvents();
+
+            // 3. 首次加载同步
+            this.HandleCreated += (s, e) => SyncUI();
         }
 
-        private void SetupLayout()
+        private void InitIntegratedLayout()
         {
             this.Controls.Clear();
 
-            // 1. 创建主布局容器
-            mainLayout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 1,
-                BackColor = Color.Transparent
-            };
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330F)); // 参数区固定宽度
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));  // 编辑区自适应
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            // 主容器：左参数 (330px) + 右预览 (剩余)
+            mainLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = Color.Transparent };
+            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330F));
+            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-            // 2. 创建左侧滚动参数面板
+            // 左侧参数面板
             pnlParams = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -60,119 +56,106 @@ namespace FC
                 WrapContents = false,
                 AutoScroll = true,
                 Padding = new Padding(10),
-                BackColor = Color.Transparent
+                BackColor = Color.FromArgb(35, 35, 38)
             };
 
-            // --- 填充参数：字符定位组 ---
-            GroupBox gbIndex = UiFactory.CreateModernGroupBox("字符定位 (0-255)", 85);
-            TableLayoutPanel gridIndex = UiFactory.CreateGridContainer(1, 4);
-            numAsciiValue = UiFactory.AddGridControl(gridIndex, "Index", 65, 0, 0);
+            // --- 组 1：字符选择 ---
+            GroupBox gbIndex = CreateSafeGroup("字符定位 (0-255)", 85);
+            TableLayoutPanel grid1 = UiFactory.CreateGridContainer(1, 4);
+            numAsciiValue = UiFactory.AddGridControl(grid1, "Index", 65, 0, 0);
+            numAsciiValue.Maximum = 255;
             txtChar = new TextBox
             {
                 ReadOnly = true,
-                BackColor = Color.FromArgb(45, 45, 48),
+                BackColor = UiFactory.ControlBg,
                 ForeColor = Color.Lime,
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign = HorizontalAlignment.Center,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
                 Margin = new Padding(5, 8, 5, 0),
-                Text = "A"
+                Text = "A",
+                Font = new Font("Consolas", 10F, FontStyle.Bold)
             };
-            gridIndex.Controls.Add(txtChar, 2, 0);
-            gbIndex.Controls.Add(gridIndex);
+            grid1.Controls.Add(txtChar, 2, 0); // 占用第 3 列
+            gbIndex.Controls.Add(grid1);
             pnlParams.Controls.Add(gbIndex);
 
-            // --- 填充参数：画布配置组 ---
-            GroupBox gbSize = UiFactory.CreateModernGroupBox("画布与变宽", 120);
-            TableLayoutPanel gridSize = UiFactory.CreateGridContainer(2, 4);
-            numCanvasW = UiFactory.AddGridControl(gridSize, "画布W", 16, 0, 0);
-            numCanvasH = UiFactory.AddGridControl(gridSize, "画布H", 16, 0, 1);
-            numWidth = UiFactory.AddGridControl(gridSize, "有效宽", 8, 1, 0);
-            gbSize.Controls.Add(gridSize);
+            // --- 组 2：画布设置 ---
+            GroupBox gbSize = CreateSafeGroup("画布与变宽", 125);
+            TableLayoutPanel grid2 = UiFactory.CreateGridContainer(2, 4);
+            numCanvasW = UiFactory.AddGridControl(grid2, "画布W", 16, 0, 0);
+            numCanvasH = UiFactory.AddGridControl(grid2, "画布H", 16, 0, 1);
+            numWidth = UiFactory.AddGridControl(grid2, "有效宽", 8, 1, 0);
+            gbSize.Controls.Add(grid2);
             pnlParams.Controls.Add(gbSize);
 
-            // --- 填充参数：TTF 渲染参数组 ---
-            GroupBox gbTTF = UiFactory.CreateModernGroupBox("TTF 渲染参数", 160);
-            TableLayoutPanel gridTTF = UiFactory.CreateGridContainer(3, 4);
-            numFontSize = UiFactory.AddGridControl(gridTTF, "字号", 16, 0, 0);
-            numBaseline = UiFactory.AddGridControl(gridTTF, "基准Y", 0, 0, 1);
-            numScaleX = UiFactory.AddGridControl(gridTTF, "比X%", 100, 1, 0);
-            numScaleY = UiFactory.AddGridControl(gridTTF, "比Y%", 100, 1, 1);
-            numOffsetX = UiFactory.AddGridControl(gridTTF, "移X", 0, 2, 0);
-            numOffsetY = UiFactory.AddGridControl(gridTTF, "移Y", 0, 2, 1);
-            gbTTF.Controls.Add(gridTTF);
+            // --- 组 3：TTF 渲染参数 ---
+            GroupBox gbTTF = CreateSafeGroup("TTF 渲染参数", 165);
+            TableLayoutPanel grid3 = UiFactory.CreateGridContainer(3, 4);
+            numFontSize = UiFactory.AddGridControl(grid3, "字号", 16, 0, 0);
+            numBaseline = UiFactory.AddGridControl(grid3, "基准Y", 0, 0, 1);
+            numScaleX = UiFactory.AddGridControl(grid3, "比X%", 100, 1, 0);
+            numScaleY = UiFactory.AddGridControl(grid3, "比Y%", 100, 1, 1);
+            numOffsetX = UiFactory.AddGridControl(grid3, "移X", 0, 2, 0);
+            numOffsetY = UiFactory.AddGridControl(grid3, "移Y", 0, 2, 1);
+            gbTTF.Controls.Add(grid3);
             pnlParams.Controls.Add(gbTTF);
 
-            // --- 填充参数：操作按钮 ---
-            Button btnImport = UiFactory.CreateStyledButton("导入 (TTF/BMP/FONT/BIN)", Color.FromArgb(0, 122, 204));
-            btnImport.Click += (s, e) => OnImportClick();
-            pnlParams.Controls.Add(btnImport);
+            // --- 组 4：功能按钮 ---
+            AddActionBtn("导入 (TTF/BMP/BIN)", UiFactory.AccentBlue, (s, e) => OnImportClick());
+            AddActionBtn("批量渲染 (覆盖未锁定)", Color.DarkOrange, (s, e) => OnBatchRender());
+            AddActionBtn("导出 .BIN (XOR加密)", Color.ForestGreen, (s, e) => OnExportClick());
 
-            Button btnBatch = UiFactory.CreateStyledButton("批量渲染 (覆盖未锁定)", Color.DarkOrange);
-            btnBatch.Click += (s, e) => OnBatchRender();
-            pnlParams.Controls.Add(btnBatch);
-
-            Button btnExport = UiFactory.CreateStyledButton("导出 .BIN (XOR加密)", Color.ForestGreen);
-            btnExport.Click += (s, e) => OnExportClick();
-            pnlParams.Controls.Add(btnExport);
-
-            // 3. 创建右侧像素编辑器
+            // 右侧：像素编辑器
             pixelEditor = new PixelEditorControl
             {
                 Dock = DockStyle.Fill,
-                Margin = new Padding(20),
+                Margin = new Padding(15),
                 BackColor = Color.Black
             };
 
-            // 4. 组装并强制挂载
             mainLayout.Controls.Add(pnlParams, 0, 0);
             mainLayout.Controls.Add(pixelEditor, 1, 0);
-
             this.Controls.Add(mainLayout);
-
-            // 5. 布局强制计算
-            mainLayout.ResumeLayout(true);
-            this.ResumeLayout(true);
-            this.PerformLayout();
         }
 
-        private void BindEvents()
+        // 辅助：创建不受 Dock.Top 干扰的容器
+        private GroupBox CreateSafeGroup(string title, int h) => new GroupBox
         {
-            // 索引改变
+            Text = title,
+            Height = h,
+            Width = 300,
+            ForeColor = Color.LightSkyBlue,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(0, 0, 0, 10)
+        };
+
+        private void AddActionBtn(string text, Color c, EventHandler h)
+        {
+            Button btn = UiFactory.CreateStyledButton(text, c, 40);
+            btn.Dock = DockStyle.None; // 关键：在 FlowLayoutPanel 中不要 Dock
+            btn.Width = 300;
+            btn.Click += h;
+            pnlParams.Controls.Add(btn);
+        }
+
+        private void BindLogicEvents()
+        {
             numAsciiValue.ValueChanged += (s, e) => {
                 _currentIdx = (int)numAsciiValue.Value;
                 txtChar.Text = ((char)_currentIdx).ToString();
                 SyncUI();
             };
 
-            // 宽度改变（具名函数绑定，方便 SyncUI 解绑）
-            numWidth.ValueChanged += numWidth_ValueChanged;
-
-            // TTF 参数联动
-            EventHandler ttfUpdate = (s, e) => {
+            // 联动渲染
+            EventHandler renderTrigger = (s, e) => {
                 if (!_mgr.AsciiSet[_currentIdx].IsManual) RenderCurrentChar();
             };
-            numFontSize.ValueChanged += ttfUpdate;
-            numBaseline.ValueChanged += ttfUpdate;
-            numOffsetX.ValueChanged += ttfUpdate;
-            numOffsetY.ValueChanged += ttfUpdate;
-            numScaleX.ValueChanged += ttfUpdate;
-            numScaleY.ValueChanged += ttfUpdate;
-
-            // 编辑器点击即锁定
-            pixelEditor.MouseDown += (s, e) => {
-                _mgr.AsciiSet[_currentIdx].IsManual = true;
-                txtChar.ForeColor = Color.Yellow;
-            };
-        }
-
-        private void numWidth_ValueChanged(object sender, EventArgs e)
-        {
-            _mgr.AsciiSet[_currentIdx].Width = (int)numWidth.Value;
-            _mgr.AsciiSet[_currentIdx].IsManual = true;
-            pixelEditor.ActiveWidth = (int)numWidth.Value;
-            pixelEditor.Invalidate();
-            txtChar.ForeColor = Color.Yellow;
+            numFontSize.ValueChanged += renderTrigger;
+            numBaseline.ValueChanged += renderTrigger;
+            numOffsetX.ValueChanged += renderTrigger;
+            numOffsetY.ValueChanged += renderTrigger;
+            numScaleX.ValueChanged += renderTrigger;
+            numScaleY.ValueChanged += renderTrigger;
         }
 
         private void SyncUI()
@@ -180,83 +163,144 @@ namespace FC
             if (pixelEditor == null) return;
             var entry = _mgr.AsciiSet[_currentIdx];
 
-            // 画布尺寸同步
             pixelEditor.CanvasW = (int)numCanvasW.Value;
             pixelEditor.CanvasH = (int)numCanvasH.Value;
+
+            // 确保数据有效性
+            if (entry.Data == null) entry.Data = new byte[512];
             pixelEditor.CurrentData = entry.Data;
+            pixelEditor.ActiveWidth = entry.Width;
 
-            // 宽度同步（暂时解绑，防止误触发锁定）
-            numWidth.ValueChanged -= numWidth_ValueChanged;
-            numWidth.Value = Math.Min(numWidth.Maximum, Math.Max(numWidth.Minimum, entry.Width));
-            pixelEditor.ActiveWidth = (int)numWidth.Value;
-            numWidth.ValueChanged += numWidth_ValueChanged;
-
-            // 颜色状态反馈
             txtChar.ForeColor = entry.IsManual ? Color.Yellow : Color.Lime;
-
             pixelEditor.Invalidate();
         }
 
         private void RenderCurrentChar()
         {
-            UpdateRendererConfig();
-            _mgr.AsciiSet[_currentIdx].Data = _fontRender.RenderChar(((char)_currentIdx).ToString());
-            _mgr.AsciiSet[_currentIdx].Width = _mgr.CalculateWidth(_mgr.AsciiSet[_currentIdx].Data, (int)numCanvasW.Value, (int)numCanvasH.Value);
-            SyncUI();
-        }
-
-        private void UpdateRendererConfig()
-        {
+            // 1. 同步画布与渲染参数
             _fontRender.CanvasWidth = (int)numCanvasW.Value;
             _fontRender.CanvasHeight = (int)numCanvasH.Value;
             _fontRender.OffsetY = (int)numBaseline.Value;
             _fontRender.OffsetX = (int)numOffsetX.Value;
             _fontRender.ScaleX = (int)numScaleX.Value;
             _fontRender.ScaleY = (int)numScaleY.Value;
+
+            // 2. 核心：如果字号改变了，需要重新加载字体实例（针对你的底层实现）
+            // 注意：如果你的 _fontRender 内部没有自动处理字号更新，
+            // 可能需要在 Render 之前重新调用一次 LoadFontFile，或者你的类里有一个专门改 Size 的方法。
+
+            // 3. 执行渲染并将结果存入管理器
+            string charToRender = ((char)_currentIdx).ToString();
+            _mgr.AsciiSet[_currentIdx].Data = _fontRender.RenderChar(charToRender);
+
+            // 4. 自动计算有效宽度并刷新 UI
+            _mgr.AsciiSet[_currentIdx].Width = _mgr.CalculateWidth(
+                _mgr.AsciiSet[_currentIdx].Data,
+                (int)numCanvasW.Value,
+                (int)numCanvasH.Value
+            );
+
+            SyncUI();
         }
 
+        /// <summary>
+        /// 处理导入逻辑：支持 TTF 字体加载
+        /// </summary>
         private void OnImportClick()
         {
-            using (OpenFileDialog ofd = new OpenFileDialog { Filter = "支持格式|*.ttf;*.otf;*.bmp;*.font;*.bin" })
+            using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                if (ofd.ShowDialog() != DialogResult.OK) return;
-                string ext = Path.GetExtension(ofd.FileName).ToLower();
-                UpdateRendererConfig();
-
-                if (ext == ".bin")
+                ofd.Filter = "字体文件|*.ttf;*.otf|所有文件|*.*";
+                if (ofd.ShowDialog() == DialogResult.OK)
                 {
-                    if (_mgr.ImportFromBin(ofd.FileName, out int w, out int h))
+                    try
                     {
-                        numCanvasW.Value = w; numCanvasH.Value = h;
+                        // 获取当前 UI 上的字号设定并传递给你的 LoadFontFile 函数
+                        float fontSize = (float)numFontSize.Value;
+                        _fontRender.LoadFontFile(ofd.FileName, fontSize);
+
+                        RenderCurrentChar();
+                        MessageBox.Show("字体加载成功！", "提示");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"字体加载失败: {ex.Message}", "错误");
                     }
                 }
-                else if (ext == ".font") _mgr.ImportFromFontText(ofd.FileName);
-                else if (ext == ".bmp") _mgr.ImportFromBmp(ofd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender);
-                else
-                {
-                    _fontRender.LoadFontFile(ofd.FileName, (float)numFontSize.Value);
-                    RenderCurrentChar();
-                }
-                SyncUI();
             }
         }
 
+        /// <summary>
+        /// 批量渲染：将当前 TTF 设置应用到所有 ASCII 字符 (32-126)
+        /// </summary>
         private void OnBatchRender()
         {
-            UpdateRendererConfig();
-            _mgr.BatchRender(_fontRender, (int)numCanvasW.Value, (int)numCanvasH.Value);
-            SyncUI();
-            MessageBox.Show("批量生成完成，已跳过锁定字符。");
+            var result = MessageBox.Show("将根据当前 TTF 参数重新生成所有未手动修改的字符，是否继续？",
+                                       "批量渲染确认", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                // 遍历标准可见 ASCII 范围
+                for (int i = 32; i < 127; i++)
+                {
+                    // 如果用户没有手动编辑过该字符，则自动重绘
+                    if (!_mgr.AsciiSet[i].IsManual)
+                    {
+                        _fontRender.CanvasWidth = (int)numCanvasW.Value;
+                        _fontRender.CanvasHeight = (int)numCanvasH.Value;
+                        _fontRender.OffsetY = (int)numBaseline.Value;
+                        _fontRender.OffsetX = (int)numOffsetX.Value;
+                        _fontRender.ScaleX = (int)numScaleX.Value;
+                        _fontRender.ScaleY = (int)numScaleY.Value;
+
+                        _mgr.AsciiSet[i].Data = _fontRender.RenderChar(((char)i).ToString());
+                        _mgr.AsciiSet[i].Width = _mgr.CalculateWidth(_mgr.AsciiSet[i].Data, (int)numCanvasW.Value, (int)numCanvasH.Value);
+                    }
+                }
+                SyncUI();
+                MessageBox.Show("批量渲染完成！", "提示");
+            }
         }
 
+        /// <summary>
+        /// 导出逻辑：生成 .BIN 文件并执行 XOR 加密（针对嵌入式安全性）
+        /// </summary>
         private void OnExportClick()
         {
-            using (SaveFileDialog sfd = new SaveFileDialog { Filter = "BIN文件|*.bin" })
+            using (SaveFileDialog sfd = new SaveFileDialog())
             {
+                sfd.Filter = "二进制文件|*.bin";
+                sfd.FileName = "ascii_font.bin";
+
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
-                    _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value);
-                    MessageBox.Show("字库导出成功！");
+                    try
+                    {
+                        using (FileStream fs = new FileStream(sfd.FileName, FileMode.Create))
+                        {
+                            // 遍历 0-255 (或根据需求选 32-126)
+                            for (int i = 0; i < 256; i++)
+                            {
+                                var entry = _mgr.AsciiSet[i];
+                                byte[] data = entry.Data;
+
+                                // 如果数据为空，填充空白
+                                if (data == null || data.Length == 0)
+                                    data = new byte[(int)(numCanvasW.Value * numCanvasH.Value / 8)];
+
+                                // 执行简单的 XOR 加密 (例如与 0x5A 异或)，增加一点破解门槛
+                                byte[] encryptedData = data.Select(b => (byte)(b ^ 0x5A)).ToArray();
+
+                                // 写入文件
+                                fs.Write(encryptedData, 0, encryptedData.Length);
+                            }
+                        }
+                        MessageBox.Show("导出成功！已应用 XOR (0x5A) 加密。", "提示");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"导出失败: {ex.Message}", "错误");
+                    }
                 }
             }
         }

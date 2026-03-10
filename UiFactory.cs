@@ -21,10 +21,12 @@ namespace FC.ui
             {
                 Text = title,
                 Height = height,
+                Width = 300, // 给一个默认宽度，适合左侧 330 宽的面板
                 ForeColor = Color.LightSkyBlue,
                 Margin = new Padding(0, 0, 0, 10),
                 FlatStyle = FlatStyle.Flat,
-                Dock = DockStyle.Top // 默认在 FlowLayoutPanel 中顺序排列
+                // Dock = DockStyle.Top // 删掉这一行！
+                Anchor = AnchorStyles.Left | AnchorStyles.Right // 改用 Anchor 适配宽度
             };
         }
 
