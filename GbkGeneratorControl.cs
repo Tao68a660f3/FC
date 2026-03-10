@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using System.IO;
 using System.Collections.Generic;
 using FC.core;
+using FC.ui;
 
 namespace FC
 {
@@ -75,7 +76,7 @@ namespace FC
             mainTable.Controls.Add(leftGrid, 0, 0);
 
             // --- 1. 字体资源 (Dock.Fill) ---
-            GroupBox gb1 = ui.UiFactory.CreateModernGroupBox("字体资源", 0);
+            GroupBox gb1 = UiFactory.CreateModernGroupBox("字体资源", 0);
             gb1.Dock = DockStyle.Fill;
             TableLayoutPanel fontGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
             fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
@@ -93,7 +94,7 @@ namespace FC
             leftGrid.Controls.Add(gb1, 0, 0);
 
             // --- 2. 尺寸与偏移 (工业级 4 行布局) ---
-            GroupBox gb2 = ui.UiFactory.CreateModernGroupBox("尺寸与偏移", 0);
+            GroupBox gb2 = UiFactory.CreateModernGroupBox("尺寸与偏移", 0);
             gb2.Dock = DockStyle.Fill;
 
             TableLayoutPanel renderGrid = new TableLayoutPanel
@@ -117,16 +118,16 @@ namespace FC
             }
 
             // 第 0, 1, 2 行保持原样
-            numFontSize = ui.UiFactory.AddGridControl(renderGrid, "字号", 16, 0, 0);
-            numCanvasW = ui.UiFactory.AddGridControl(renderGrid, "宽", 16, 1, 0);
-            numCanvasH = ui.UiFactory.AddGridControl(renderGrid, "高", 16, 1, 1);
-            numOffsetX = ui.UiFactory.AddGridControl(renderGrid, "移X", 0, 2, 0);
-            numOffsetY = ui.UiFactory.AddGridControl(renderGrid, "移Y", 0, 2, 1);
+            numFontSize = UiFactory.AddGridControl(renderGrid, "字号", 16, 0, 0);
+            numCanvasW = UiFactory.AddGridControl(renderGrid, "宽", 16, 1, 0);
+            numCanvasH = UiFactory.AddGridControl(renderGrid, "高", 16, 1, 1);
+            numOffsetX = UiFactory.AddGridControl(renderGrid, "移X", 0, 2, 0);
+            numOffsetY = UiFactory.AddGridControl(renderGrid, "移Y", 0, 2, 1);
 
             // --- 第 3 行：百分比缩放 ---
             // 默认值 100 代表 100%
-            numScaleX = ui.UiFactory.AddGridControl(renderGrid, "比X%", 100, 3, 0);
-            numScaleY = ui.UiFactory.AddGridControl(renderGrid, "比Y%", 100, 3, 1);
+            numScaleX = UiFactory.AddGridControl(renderGrid, "比X%", 100, 3, 0);
+            numScaleY = UiFactory.AddGridControl(renderGrid, "比Y%", 100, 3, 1);
 
             // 设置一下范围，防止用户调成 0
             numScaleX.Minimum = 10;
@@ -140,7 +141,7 @@ namespace FC
             leftGrid.Controls.Add(gb2, 0, 1);
 
             // --- 3. 输出格式 (Dock.Fill) ---
-            GroupBox gb3 = ui.UiFactory.CreateModernGroupBox("输出格式", 0);
+            GroupBox gb3 = UiFactory.CreateModernGroupBox("输出格式", 0);
             gb3.Dock = DockStyle.Fill;
             TableLayoutPanel exportGrid = new TableLayoutPanel
             {
@@ -157,9 +158,9 @@ namespace FC
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
 
-            cmbScanMode = ui.UiFactory.AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
-            cmbBitOrder = ui.UiFactory.AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
-            cmbEncoding = ui.UiFactory.AddGridCombo(exportGrid, "编码", null, 2);
+            cmbScanMode = UiFactory.AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
+            cmbBitOrder = UiFactory.AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
+            cmbEncoding = UiFactory.AddGridCombo(exportGrid, "编码", null, 2);
             cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22084", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
             gb3.Controls.Add(exportGrid);
