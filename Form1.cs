@@ -47,7 +47,7 @@ namespace FC
 
         private void InitResponsiveLayout()
         {
-            // 1. 全局大网格 (1行2列)
+            // --- 全局大网格 (1行2列) ---
             TableLayoutPanel mainTable = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -55,60 +55,97 @@ namespace FC
                 RowCount = 1,
                 BackColor = Color.FromArgb(30, 30, 30)
             };
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38F)); // 左侧控制区 38%
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62F)); // 右侧预览区 62%
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35F)); // 左侧 35%
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65F)); // 右侧 65%
             this.Controls.Add(mainTable);
 
-            // --- 左侧：控制容器 ---
-            FlowLayoutPanel leftFlow = new FlowLayoutPanel
+            // --- 左侧：响应式容器 (按行比例分配) ---
+            TableLayoutPanel leftGrid = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.TopDown,
-                Padding = new Padding(15),
-                AutoScroll = true,
-                WrapContents = false
+                ColumnCount = 1,
+                RowCount = 4,
+                Padding = new Padding(15)
             };
-            mainTable.Controls.Add(leftFlow, 0, 0);
+            // 分配行高比例
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 18F)); // 字体源
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 35F)); // 尺寸偏移
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 25F)); // 输出格式
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 22F)); // 执行区
+            mainTable.Controls.Add(leftGrid, 0, 0);
 
-            // --- 组 1: 字体资源 (比例对齐) ---
-            GroupBox gb1 = CreateModernGroupBox("字体资源", 100);
+            // --- 1. 字体资源 (Dock.Fill) ---
+            GroupBox gb1 = CreateModernGroupBox("字体资源", 0);
+            gb1.Dock = DockStyle.Fill;
             TableLayoutPanel fontGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
-            fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80F)); // 文本框占 80%
-            fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F)); // 按钮占 20%
-
-            txtFontPath = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(5, 15, 5, 5), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
-            Button btnBrowse = new Button { Text = "...", Dock = DockStyle.Fill, Margin = new Padding(5, 12, 5, 5), BackColor = Color.FromArgb(60, 60, 60), FlatStyle = FlatStyle.Flat };
-            btnBrowse.Click += (s, e) => {
+            fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
+            fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            txtFontPath = new TextBox { Dock = DockStyle.Top, Margin = new Padding(5, 20, 5, 0), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
+            Button btnBrowse = new Button { Text = "浏览", Dock = DockStyle.Top, Height = 30, Margin = new Padding(5, 18, 5, 0), BackColor = Color.FromArgb(60, 60, 60), FlatStyle = FlatStyle.Flat };
+            btnBrowse.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.otf;*.ttc" })
                     if (ofd.ShowDialog() == DialogResult.OK) txtFontPath.Text = ofd.FileName;
             };
             fontGrid.Controls.Add(txtFontPath, 0, 0);
             fontGrid.Controls.Add(btnBrowse, 1, 0);
             gb1.Controls.Add(fontGrid);
-            leftFlow.Controls.Add(gb1);
+            leftGrid.Controls.Add(gb1, 0, 0);
 
-            // --- 组 2: 尺寸与偏移 (均匀网格) ---
-            GroupBox gb2 = CreateModernGroupBox("尺寸与偏移", 180);
-            TableLayoutPanel renderGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3, Padding = new Padding(5, 15, 5, 5) };
-            // 四列平分：25% 25% 25% 25%
-            for (int i = 0; i < 4; i++) renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            // --- 2. 尺寸与偏移 (彻底修复对齐与行高) ---
+            GroupBox gb2 = CreateModernGroupBox("尺寸与偏移", 0);
+            gb2.Dock = DockStyle.Fill;
 
-            numFontSize = AddGridControl(renderGrid, "字号", 16, 0, 0);
-            numCanvasW = AddGridControl(renderGrid, "宽", 16, 1, 0);
-            numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);
-            numOffsetX = AddGridControl(renderGrid, "移X", 0, 2, 0);
-            numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);
+            TableLayoutPanel renderGrid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 3,
+                Padding = new Padding(5, 5, 5, 5)
+            };
+
+            // 1. 强制 4 列按比例平分 (20% 30% 20% 30%)
+            renderGrid.ColumnStyles.Clear();
+            renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
+            renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
+
+            // 2. 关键：强制 3 行平分高度 (各占 33.3%)
+            renderGrid.RowStyles.Clear();
+            for (int i = 0; i < 3; i++)
+            {
+                renderGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
+            }
+
+            // 3. 重新添加控件 (注意行号 row 分配)
+            numFontSize = AddGridControl(renderGrid, "字号", 16, 0, 0); // 第0行，左侧组
+            numCanvasW = AddGridControl(renderGrid, "宽", 16, 1, 0);   // 第1行，左侧组
+            numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);   // 第1行，右侧组
+            numOffsetX = AddGridControl(renderGrid, "移X", 0, 2, 0);  // 第2行，左侧组
+            numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);  // 第2行，右侧组
             gb2.Controls.Add(renderGrid);
-
-            lblFileSizeMsg = new Label { Text = "预计: 0 KB", Dock = DockStyle.Bottom, ForeColor = Color.Orange, TextAlign = ContentAlignment.MiddleRight };
+            lblFileSizeMsg = new Label { Text = "预计: 0 KB", Dock = DockStyle.Bottom, Height = 20, ForeColor = Color.Orange, TextAlign = ContentAlignment.MiddleRight };
             gb2.Controls.Add(lblFileSizeMsg);
-            leftFlow.Controls.Add(gb2);
+            leftGrid.Controls.Add(gb2, 0, 1);
 
-            // --- 组 3: 输出格式 ---
-            GroupBox gb3 = CreateModernGroupBox("输出格式", 150);
-            TableLayoutPanel exportGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, Padding = new Padding(5, 15, 5, 5) };
-            exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35F));
-            exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65F));
+            // --- 3. 输出格式 (Dock.Fill) ---
+            GroupBox gb3 = CreateModernGroupBox("输出格式", 0);
+            gb3.Dock = DockStyle.Fill;
+            TableLayoutPanel exportGrid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 3,
+                Padding = new Padding(10)
+            };
+
+            // 显式定义行高，让三行平分 GroupBox 的高度
+            exportGrid.RowStyles.Clear();
+            for (int i = 0; i < 3; i++) exportGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
+
+            exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
+            exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
 
             cmbScanMode = AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
             cmbBitOrder = AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
@@ -116,39 +153,29 @@ namespace FC
             cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22062", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
             gb3.Controls.Add(exportGrid);
-            leftFlow.Controls.Add(gb3);
+            leftGrid.Controls.Add(gb3, 0, 2);
 
-            // --- 执行区 ---
-            btnGo = new Button { Text = "🚀 开始生成 (.bin)", Width = 340, Height = 60, BackColor = Color.FromArgb(0, 122, 204), FlatStyle = FlatStyle.Flat, Font = new Font(this.Font, FontStyle.Bold), Margin = new Padding(0, 20, 0, 0) };
+            // --- 4. 执行区 (下对齐) ---
+            Panel runPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 10, 0, 0) };
+            btnGo = new Button { Text = "🚀 开始生成 (.bin)", Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(0, 122, 204), FlatStyle = FlatStyle.Flat, Font = new Font(this.Font, FontStyle.Bold) };
             btnGo.Click += BtnGo_Click;
-            leftFlow.Controls.Add(btnGo);
+            prgBus = new ProgressBar { Dock = DockStyle.Top, Height = 10, Margin = new Padding(0, 10, 0, 0) };
+            lblStatus = new Label { Text = "准备就绪", Dock = DockStyle.Bottom, Height = 25, ForeColor = Color.Gray };
+            runPanel.Controls.Add(prgBus);
+            runPanel.Controls.Add(btnGo);
+            runPanel.Controls.Add(lblStatus);
+            leftGrid.Controls.Add(runPanel, 0, 3);
 
-            prgBus = new ProgressBar { Width = 340, Height = 10, Margin = new Padding(0, 10, 0, 0) };
-            leftFlow.Controls.Add(prgBus);
-            lblStatus = new Label { Text = "准备就绪", AutoSize = true, ForeColor = Color.Gray };
-            leftFlow.Controls.Add(lblStatus);
-
-            // --- 右侧：预览区 (比例适配) ---
+            // --- 右侧预览区 (保持比例适配) ---
             TableLayoutPanel rightTable = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, BackColor = Color.FromArgb(20, 20, 20), Padding = new Padding(20) };
-            rightTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F)); // 顶部输入框固定高度
-            rightTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // 预览图占满剩余
+            rightTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+            rightTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainTable.Controls.Add(rightTable, 1, 0);
 
             txtPreviewInput = new TextBox { Dock = DockStyle.Fill, Text = "汉", Font = new Font("微软雅黑", 16), TextAlign = HorizontalAlignment.Center, BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.Lime };
             rightTable.Controls.Add(txtPreviewInput, 0, 0);
-
             picPreview = new PictureBox { Dock = DockStyle.Fill, BackColor = Color.Black, SizeMode = PictureBoxSizeMode.Zoom };
             rightTable.Controls.Add(picPreview, 0, 1);
-        }
-
-        // 辅助：支持 Grid 的下拉框添加
-        private ComboBox AddGridCombo(TableLayoutPanel grid, string text, Type enumType, int row)
-        {
-            grid.Controls.Add(new Label { Text = text, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, row);
-            var c = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
-            if (enumType != null) c.DataSource = Enum.GetValues(enumType);
-            grid.Controls.Add(c, 1, row);
-            return c;
         }
 
         private GroupBox CreateModernGroupBox(string title, int height)
@@ -164,13 +191,57 @@ namespace FC
             };
         }
 
-        // 辅助方法：精准网格添加
+        // 1. 修复数字输入框对齐
         private NumericUpDown AddGridControl(TableLayoutPanel grid, string label, int def, int row, int colGroup)
         {
-            grid.Controls.Add(new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Bottom, Margin = new Padding(0, 0, 0, 5) }, colGroup * 2, row);
-            var n = new NumericUpDown { Value = def, Minimum = -128, Maximum = 128, Dock = DockStyle.Fill, BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
+            grid.Controls.Add(new Label
+            {
+                Text = label,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                AutoSize = false,
+                ForeColor = Color.LightGray
+            }, colGroup * 2, row);
+
+            var n = new NumericUpDown
+            {
+                Value = def,
+                Minimum = -128,
+                Maximum = 128,
+                // 关键：不要用 Dock.Fill，用 Anchor 来实现垂直居中
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(5, 0, 5, 0),
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White
+            };
             grid.Controls.Add(n, colGroup * 2 + 1, row);
             return n;
+        }
+
+        // 2. 修复下拉框对齐 (输出格式区)
+        private ComboBox AddGridCombo(TableLayoutPanel grid, string text, Type enumType, int row)
+        {
+            grid.Controls.Add(new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                AutoSize = false,
+                ForeColor = Color.LightGray
+            }, 0, row);
+
+            var c = new ComboBox
+            {
+                // 关键：同样使用 Anchor 实现垂直居中
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(5, 0, 5, 0),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White
+            };
+            if (enumType != null) c.DataSource = Enum.GetValues(enumType);
+            grid.Controls.Add(c, 1, row);
+            return c;
         }
 
         // 辅助方法：下拉框
@@ -273,8 +344,10 @@ namespace FC
             btnGo.Enabled = false;
             btnGo.Text = "正在输出...";
 
-            await _engine.GenerateAsync(new GbkCustomProvider(), "output.bin", (cur, total) => {
-                this.Invoke(new Action(() => {
+            await _engine.GenerateAsync(new GbkCustomProvider(), "output.bin", (cur, total) =>
+            {
+                this.Invoke(new Action(() =>
+                {
                     prgBus.Maximum = total;
                     prgBus.Value = cur;
                     lblStatus.Text = $"处理中: {cur}/{total}";
