@@ -333,18 +333,59 @@ namespace FC
 
         private void CalculateInfo()
         {
-            int charCount = (cmbEncoding.SelectedIndex == 0) ? 22062 : 6768;
-            int bytesPerChar = ((int)numCanvasW.Value + 7) / 8 * (int)numCanvasH.Value;
-            lblFileSizeMsg.Text = $"预计: {charCount * bytesPerChar / 1024} KB ({charCount} 字)";
+            // 动态获取当前编码下的字符总数，不再硬编码
+            IEncodingProvider tempProvider = (cmbEncoding.SelectedIndex == 1)
+                ? (IEncodingProvider)new Gb2312Provider()
+                : (IEncodingProvider)new GbkCustomProvider();
+
+            int charCount = 0;
+            foreach (var _ in tempProvider.GetEncodingStream()) charCount++;
+
+            // 计算单个字符占用的字节数
+            // 横向扫描：每行字节数 * 行数；纵向扫描：每列字节数 * 列数
+            int bytesPerChar;
+            if (cmbScanMode.SelectedIndex == 0) // Horizontal
+                bytesPerChar = ((int)numCanvasW.Value + 7) / 8 * (int)numCanvasH.Value;
+            else // Vertical
+                bytesPerChar = ((int)numCanvasH.Value + 7) / 8 * (int)numCanvasW.Value;
+
+            long totalBytes = (long)charCount * bytesPerChar;
+            lblFileSizeMsg.Text = $"预计: {totalBytes / 1024.0:F2} KB ({charCount} 字)";
         }
 
         private async void BtnGo_Click(object sender, EventArgs e)
         {
             if (!File.Exists(txtFontPath.Text)) return;
+
+            // --- 新增：弹出保存对话框 ---
+            string savePath = "";
+            using (SaveFileDialog sfd = new SaveFileDialog
+            {
+                Filter = "字库文件|*.bin",
+                FileName = (cmbEncoding.SelectedIndex == 0 ? "GBK_Custom" : "GB2312_Std") + ".bin"
+            })
+            {
+                if (sfd.ShowDialog() != DialogResult.OK) return;
+                savePath = sfd.FileName;
+            }
+
             btnGo.Enabled = false;
             btnGo.Text = "正在输出...";
 
-            await _engine.GenerateAsync(new GbkCustomProvider(), "output.bin", (cur, total) =>
+            // 实例化 Provider (记得传参区分模式)
+            IEncodingProvider provider = (cmbEncoding.SelectedIndex == 1)
+                ? (IEncodingProvider)new Gb2312Provider()
+                : (IEncodingProvider)new GbkCustomProvider();
+
+            // 同步 UI 参数到渲染器
+            _renderer.CurrentScanMode = (ScanMode)cmbScanMode.SelectedItem;
+            _renderer.CurrentBitOrder = (BitOrder)cmbBitOrder.SelectedItem;
+            _renderer.CanvasWidth = (int)numCanvasW.Value;
+            _renderer.CanvasHeight = (int)numCanvasH.Value;
+            _renderer.OffsetX = (int)numOffsetX.Value;
+            _renderer.OffsetY = -(int)numOffsetY.Value;
+
+            await _engine.GenerateAsync(provider, savePath, (cur, total) => // 使用 savePath
             {
                 this.Invoke(new Action(() =>
                 {
@@ -355,7 +396,7 @@ namespace FC
             });
 
             btnGo.Enabled = true;
-            btnGo.Text = "开始生成 (.bin)";
+            btnGo.Text = "🚀 开始生成 (.bin)";
             MessageBox.Show("字库生成成功！");
         }
     }
