@@ -16,7 +16,7 @@ public partial class Form1 : Form
         this.Controls.Add(_mainContainer);
 
         // 初始化菜单并加载默认模块
-        SwitchToModule(new GbkGeneratorControl());
+        SwitchToModule(new FontInspectorControl());
     }
 
     private void SwitchToModule(UserControl module)
