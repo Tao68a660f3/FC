@@ -19,49 +19,29 @@ namespace FC.core
 
         public IEnumerable<ushort> GetEncodingStream()
         {
-            // 区间 1 (符号区): 0xA1A1 - 0xA9FE (低位 A1-FE, 不含 7F)
+            // 1. 0xA1A1 - 0xA9FE (846字)
             for (int h = 0xA1; h <= 0xA9; h++)
                 for (int l = 0xA1; l <= 0xFE; l++) yield return (ushort)((h << 8) | l);
 
-            // 区间 5 (扩充符号): 0xA840 - 0xA9A0 (低位 40-A0, 需跳过 7F)
+            // 2. GBK扩充5区 (194字): 0xA840 - 0xA9A1
             for (int h = 0xA8; h <= 0xA9; h++)
-                for (int l = 0x40; l <= 0xA0; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
+                for (int l = 0x40; l <= 0xA1; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
 
-            // 区间 2 (常用汉字): 0xB0A1 - 0xF7FE (低位 A1-FE, 不含 7F)
+            // 3. 0xB0A1 - 0xF7FE (6768字)
             for (int h = 0xB0; h <= 0xF7; h++)
                 for (int l = 0xA1; l <= 0xFE; l++) yield return (ushort)((h << 8) | l);
 
-            // 区间 3 (扩充 A 区): 0x8140 - 0xA0FE (低位 40-FE, 需跳过 7F)
+            // 4. GBK扩充3区 (6112字): 0x8140 - 0xA0FF
+            // 注意：低位扫到 0xFF 才能凑够 191 个有效字符
             for (int h = 0x81; h <= 0xA0; h++)
-                for (int l = 0x40; l <= 0xFE; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
+                for (int l = 0x40; l <= 0xFF; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
 
-            // 区间 4 (扩充 B 区): 0xAA40 - 0xFEA0 (低位 40-A0, 需跳过 7F)
-            for (int h = 0xAA; h <= 0xFE; h++)
-                for (int l = 0x40; l <= 0xA0; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
+            // 5. GBK扩充4区 (8148字): 0xAA40 - 0xFDA1
+            for (int h = 0xAA; h <= 0xFD; h++)
+                for (int l = 0x40; l <= 0xA1; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
 
-            // 区间 4b (补丁): 0xFE40 - 0xFE4F
+            // 6. 补丁区 (16字): 0xFE40 - 0xFE4F
             for (int l = 0x40; l <= 0x4F; l++) yield return (ushort)(0xFE00 | l);
-        }
-
-        private IEnumerable<ushort> IterateRegion(ushort start, ushort end, bool skip7F)
-        {
-            byte startH = (byte)(start >> 8);
-            byte startL = (byte)(start & 0xFF);
-            byte endH = (byte)(end >> 8);
-            byte endL = (byte)(end & 0xFF);
-
-            for (int h = startH; h <= endH; h++)
-            {
-                // 关键点：除了首行和末行，中间行的低位都是从 0x40 (或 0xA1) 到 0xFE
-                int sL = (h == startH) ? startL : (startL < 0xA1 ? 0x40 : 0xA1);
-                int eL = (h == endH) ? endL : 0xFE;
-
-                for (int l = sL; l <= eL; l++)
-                {
-                    if (skip7F && l == 0x7F) continue;
-                    yield return (ushort)((h << 8) | (byte)l);
-                }
-            }
         }
 
         public string GetString(ushort code)

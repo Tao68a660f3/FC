@@ -150,7 +150,7 @@ namespace FC
             cmbScanMode = AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
             cmbBitOrder = AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
             cmbEncoding = AddGridCombo(exportGrid, "编码", null, 2);
-            cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22062", "GB2312_Standard" });
+            cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22084", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
             gb3.Controls.Add(exportGrid);
             leftGrid.Controls.Add(gb3, 0, 2);
