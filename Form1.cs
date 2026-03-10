@@ -50,8 +50,9 @@ namespace FC
 
             var itemGbk = new ToolStripMenuItem("GBK/GB2312 生成器", null, (s, e) => SwitchModule(new GbkGeneratorControl()));
             var itemAscii = new ToolStripMenuItem("ASCII 标准字库", null, (s, e) => {
-                MessageBox.Show("ASCII 模式正在开发中，即将上线！", "预告");
-                // 待会儿我们要写的：SwitchModule(new AsciiGeneratorControl());
+                //MessageBox.Show("ASCII 模式正在开发中，即将上线！", "预告");
+                 //待会儿我们要写的：
+                 SwitchModule(new AsciiGeneratorControl());
             });
             var itemInspect = new ToolStripMenuItem("字库校验与参考代码", null, (s, e) => SwitchModule(new FontInspectorControl()));
 
