@@ -75,7 +75,7 @@ namespace FC
             mainTable.Controls.Add(leftGrid, 0, 0);
 
             // --- 1. 字体资源 (Dock.Fill) ---
-            GroupBox gb1 = CreateModernGroupBox("字体资源", 0);
+            GroupBox gb1 = ui.UiFactory.CreateModernGroupBox("字体资源", 0);
             gb1.Dock = DockStyle.Fill;
             TableLayoutPanel fontGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
             fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
@@ -93,7 +93,7 @@ namespace FC
             leftGrid.Controls.Add(gb1, 0, 0);
 
             // --- 2. 尺寸与偏移 (工业级 4 行布局) ---
-            GroupBox gb2 = CreateModernGroupBox("尺寸与偏移", 0);
+            GroupBox gb2 = ui.UiFactory.CreateModernGroupBox("尺寸与偏移", 0);
             gb2.Dock = DockStyle.Fill;
 
             TableLayoutPanel renderGrid = new TableLayoutPanel
@@ -117,16 +117,16 @@ namespace FC
             }
 
             // 第 0, 1, 2 行保持原样
-            numFontSize = AddGridControl(renderGrid, "字号", 16, 0, 0);
-            numCanvasW = AddGridControl(renderGrid, "宽", 16, 1, 0);
-            numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);
-            numOffsetX = AddGridControl(renderGrid, "移X", 0, 2, 0);
-            numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);
+            numFontSize = ui.UiFactory.AddGridControl(renderGrid, "字号", 16, 0, 0);
+            numCanvasW = ui.UiFactory.AddGridControl(renderGrid, "宽", 16, 1, 0);
+            numCanvasH = ui.UiFactory.AddGridControl(renderGrid, "高", 16, 1, 1);
+            numOffsetX = ui.UiFactory.AddGridControl(renderGrid, "移X", 0, 2, 0);
+            numOffsetY = ui.UiFactory.AddGridControl(renderGrid, "移Y", 0, 2, 1);
 
             // --- 第 3 行：百分比缩放 ---
             // 默认值 100 代表 100%
-            numScaleX = AddGridControl(renderGrid, "比X%", 100, 3, 0);
-            numScaleY = AddGridControl(renderGrid, "比Y%", 100, 3, 1);
+            numScaleX = ui.UiFactory.AddGridControl(renderGrid, "比X%", 100, 3, 0);
+            numScaleY = ui.UiFactory.AddGridControl(renderGrid, "比Y%", 100, 3, 1);
 
             // 设置一下范围，防止用户调成 0
             numScaleX.Minimum = 10;
@@ -140,7 +140,7 @@ namespace FC
             leftGrid.Controls.Add(gb2, 0, 1);
 
             // --- 3. 输出格式 (Dock.Fill) ---
-            GroupBox gb3 = CreateModernGroupBox("输出格式", 0);
+            GroupBox gb3 = ui.UiFactory.CreateModernGroupBox("输出格式", 0);
             gb3.Dock = DockStyle.Fill;
             TableLayoutPanel exportGrid = new TableLayoutPanel
             {
@@ -157,9 +157,9 @@ namespace FC
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
 
-            cmbScanMode = AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
-            cmbBitOrder = AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
-            cmbEncoding = AddGridCombo(exportGrid, "编码", null, 2);
+            cmbScanMode = ui.UiFactory.AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
+            cmbBitOrder = ui.UiFactory.AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
+            cmbEncoding = ui.UiFactory.AddGridCombo(exportGrid, "编码", null, 2);
             cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22084", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
             gb3.Controls.Add(exportGrid);
@@ -186,82 +186,6 @@ namespace FC
             rightTable.Controls.Add(txtPreviewInput, 0, 0);
             picPreview = new PictureBox { Dock = DockStyle.Fill, BackColor = Color.Black, SizeMode = PictureBoxSizeMode.Zoom };
             rightTable.Controls.Add(picPreview, 0, 1);
-        }
-
-        private GroupBox CreateModernGroupBox(string title, int height)
-        {
-            return new GroupBox
-            {
-                Text = title,
-                Width = 350, // 这里的宽度在 FlowLayoutPanel 中起作用，但在 TableLayoutPanel 中会被 Dock 覆盖
-                Height = height,
-                ForeColor = Color.LightSkyBlue,
-                Margin = new Padding(0, 0, 0, 15),
-                FlatStyle = FlatStyle.Flat // 让边框看起来更简洁
-            };
-        }
-
-        // 1. 修复数字输入框对齐
-        private NumericUpDown AddGridControl(TableLayoutPanel grid, string label, int def, int row, int colGroup)
-        {
-            grid.Controls.Add(new Label
-            {
-                Text = label,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize = false,
-                ForeColor = Color.LightGray
-            }, colGroup * 2, row);
-
-            var n = new NumericUpDown
-            {
-                Value = def,
-                Minimum = -128,
-                Maximum = 128,
-                // 关键：不要用 Dock.Fill，用 Anchor 来实现垂直居中
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                Margin = new Padding(5, 0, 5, 0),
-                BackColor = Color.FromArgb(45, 45, 45),
-                ForeColor = Color.White
-            };
-            grid.Controls.Add(n, colGroup * 2 + 1, row);
-            return n;
-        }
-
-        // 2. 修复下拉框对齐 (输出格式区)
-        private ComboBox AddGridCombo(TableLayoutPanel grid, string text, Type enumType, int row)
-        {
-            grid.Controls.Add(new Label
-            {
-                Text = text,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize = false,
-                ForeColor = Color.LightGray
-            }, 0, row);
-
-            var c = new ComboBox
-            {
-                // 关键：同样使用 Anchor 实现垂直居中
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                Margin = new Padding(5, 0, 5, 0),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Color.FromArgb(45, 45, 45),
-                ForeColor = Color.White
-            };
-            if (enumType != null) c.DataSource = Enum.GetValues(enumType);
-            grid.Controls.Add(c, 1, row);
-            return c;
-        }
-
-        // 辅助方法：下拉框
-        private ComboBox AddFlowCombo(GroupBox gb, string text, Type enumType, int y)
-        {
-            gb.Controls.Add(new Label { Text = text, Location = new Point(15, y + 3), AutoSize = true });
-            var c = new ComboBox { Location = new Point(100, y), Width = 260, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
-            if (enumType != null) c.DataSource = Enum.GetValues(enumType);
-            gb.Controls.Add(c);
-            return c;
         }
 
         private void BindEvents()

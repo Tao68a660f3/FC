@@ -9,7 +9,7 @@ namespace FC.core
     public enum ScanMode { Horizontal, Vertical }
     public enum BitOrder { MSBFirst, LSBFirst }
 
-    internal class FontRender : IDisposable
+    public class FontRender : IDisposable
     {
         private PrivateFontCollection _pfc;
         private Font _currentFont;
@@ -68,7 +68,7 @@ namespace FC.core
         }
 
         // 后面原有的 ConvertTo1Bpp, IsPixelBlack, ApplyBit 保持不变...
-        private byte[] ConvertTo1Bpp(Bitmap bmp)
+        public byte[] ConvertTo1Bpp(Bitmap bmp)
         {
             if (CurrentScanMode == ScanMode.Horizontal)
             {
