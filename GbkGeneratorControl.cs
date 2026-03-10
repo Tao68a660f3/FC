@@ -16,7 +16,7 @@ namespace FC
 
         // 成员变量声明 (修复之前的漏定义)
         private TextBox txtFontPath, txtPreviewInput;
-        private NumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY;
+        private NumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY, numScaleX, numScaleY;
         private ComboBox cmbScanMode, cmbBitOrder, cmbEncoding;
         private PictureBox picPreview;
         private ProgressBar prgBus;
@@ -92,7 +92,7 @@ namespace FC
             gb1.Controls.Add(fontGrid);
             leftGrid.Controls.Add(gb1, 0, 0);
 
-            // --- 2. 尺寸与偏移 (彻底修复对齐与行高) ---
+            // --- 2. 尺寸与偏移 (工业级 4 行布局) ---
             GroupBox gb2 = CreateModernGroupBox("尺寸与偏移", 0);
             gb2.Dock = DockStyle.Fill;
 
@@ -100,30 +100,40 @@ namespace FC
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 4,
-                RowCount = 3,
+                RowCount = 4, // 增加到 4 行
                 Padding = new Padding(5, 5, 5, 5)
             };
 
-            // 1. 强制 4 列按比例平分 (20% 30% 20% 30%)
             renderGrid.ColumnStyles.Clear();
             renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             renderGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
 
-            // 2. 关键：强制 3 行平分高度 (各占 33.3%)
             renderGrid.RowStyles.Clear();
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 4; i++)
             {
-                renderGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
+                renderGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 25F));
             }
 
-            // 3. 重新添加控件 (注意行号 row 分配)
-            numFontSize = AddGridControl(renderGrid, "字号", 16, 0, 0); // 第0行，左侧组
-            numCanvasW = AddGridControl(renderGrid, "宽", 16, 1, 0);   // 第1行，左侧组
-            numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);   // 第1行，右侧组
-            numOffsetX = AddGridControl(renderGrid, "移X", 0, 2, 0);  // 第2行，左侧组
-            numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);  // 第2行，右侧组
+            // 第 0, 1, 2 行保持原样
+            numFontSize = AddGridControl(renderGrid, "字号", 16, 0, 0);
+            numCanvasW = AddGridControl(renderGrid, "宽", 16, 1, 0);
+            numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);
+            numOffsetX = AddGridControl(renderGrid, "移X", 0, 2, 0);
+            numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);
+
+            // --- 第 3 行：百分比缩放 ---
+            // 默认值 100 代表 100%
+            numScaleX = AddGridControl(renderGrid, "比X%", 100, 3, 0);
+            numScaleY = AddGridControl(renderGrid, "比Y%", 100, 3, 1);
+
+            // 设置一下范围，防止用户调成 0
+            numScaleX.Minimum = 10;
+            numScaleX.Maximum = 500;
+            numScaleY.Minimum = 10;
+            numScaleY.Maximum = 500;
+
             gb2.Controls.Add(renderGrid);
             lblFileSizeMsg = new Label { Text = "预计: 0 KB", Dock = DockStyle.Bottom, Height = 20, ForeColor = Color.Orange, TextAlign = ContentAlignment.MiddleRight };
             gb2.Controls.Add(lblFileSizeMsg);
@@ -262,6 +272,8 @@ namespace FC
             numCanvasH.ValueChanged += (s, e) => update();
             numOffsetX.ValueChanged += (s, e) => update();
             numOffsetY.ValueChanged += (s, e) => update(); // 此时 Y 变化也会触发预览
+            numScaleX.ValueChanged += (s, e) => update();
+            numScaleY.ValueChanged += (s, e) => update();
             txtFontPath.TextChanged += (s, e) => update();
             txtPreviewInput.TextChanged += (s, e) => update();
             cmbScanMode.SelectedIndexChanged += (s, e) => update();
@@ -282,6 +294,9 @@ namespace FC
                 // 修正偏移方向：让用户觉得 OffsetY 变大是“向上移”
                 _renderer.OffsetX = (int)numOffsetX.Value;
                 _renderer.OffsetY = -(int)numOffsetY.Value;
+
+                _renderer.ScaleX = (int)numScaleX.Value;
+                _renderer.ScaleY = (int)numScaleY.Value;
 
                 _renderer.CurrentScanMode = (ScanMode)cmbScanMode.SelectedItem;
                 _renderer.CurrentBitOrder = (BitOrder)cmbBitOrder.SelectedItem;
@@ -384,6 +399,8 @@ namespace FC
             _renderer.CanvasHeight = (int)numCanvasH.Value;
             _renderer.OffsetX = (int)numOffsetX.Value;
             _renderer.OffsetY = -(int)numOffsetY.Value;
+            _renderer.ScaleX = (int)numScaleX.Value;
+            _renderer.ScaleY = (int)numScaleY.Value;
 
             await _engine.GenerateAsync(provider, savePath, (cur, total) => // 使用 savePath
             {

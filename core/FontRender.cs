@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Text;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.IO;
 
 namespace FC.core
 {
-    public enum ScanMode { Horizontal, Vertical } // 横向扫描 vs 纵向扫描
-    public enum BitOrder { MSBFirst, LSBFirst }   // 高位在前 (0x80) vs 低位在前 (0x01)
+    public enum ScanMode { Horizontal, Vertical }
+    public enum BitOrder { MSBFirst, LSBFirst }
 
     internal class FontRender : IDisposable
     {
@@ -22,49 +22,58 @@ namespace FC.core
         public int OffsetX { get; set; } = 0;
         public int OffsetY { get; set; } = 0;
 
-        // 加载外部 .ttf 文件
+        // --- 新增：百分比缩放属性 (默认 100 代表 100%) ---
+        public int ScaleX { get; set; } = 100;
+        public int ScaleY { get; set; } = 100;
+
         public void LoadFontFile(string path, float size)
         {
             _currentFont?.Dispose();
             _pfc?.Dispose();
-
             _pfc = new PrivateFontCollection();
             _pfc.AddFontFile(path);
-
-            // 使用 Pixel 单位确保点阵精确
             _currentFont = new Font(_pfc.Families[0], size, FontStyle.Regular, GraphicsUnit.Pixel);
-
-            // 默认画布大小等于字号
-            CanvasWidth = (int)size;
-            CanvasHeight = (int)size;
         }
 
-        // 渲染单个字符并返回点阵字节
+        // 核心渲染函数：更新接口以匹配新需求
         public byte[] RenderChar(string text)
         {
             using (Bitmap bmp = new Bitmap(CanvasWidth, CanvasHeight, PixelFormat.Format32bppArgb))
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                g.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
                 g.Clear(Color.White);
+                g.SmoothingMode = SmoothingMode.None;
+                g.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
+
+                // --- 1. 计算缩放系数 ---
+                float sx = ScaleX / 100.0f;
+                float sy = ScaleY / 100.0f;
+
+                // --- 2. 应用缩放变换 ---
+                // 使用矩阵可以更稳定地控制缩放
+                g.ScaleTransform(sx, sy);
+
+                // --- 3. 绘制文字 ---
+                // 关键：为了让 OffsetX/Y 保持物理像素感，绘图坐标需要除以缩放系数
+                float drawX = OffsetX / sx;
+                float drawY = OffsetY / sy;
 
                 using (Brush b = new SolidBrush(Color.Black))
                 {
-                    g.DrawString(text, _currentFont, b, OffsetX, OffsetY);
+                    g.DrawString(text, _currentFont, b, drawX, drawY);
                 }
 
                 return ConvertTo1Bpp(bmp);
             }
         }
 
+        // 后面原有的 ConvertTo1Bpp, IsPixelBlack, ApplyBit 保持不变...
         private byte[] ConvertTo1Bpp(Bitmap bmp)
         {
             if (CurrentScanMode == ScanMode.Horizontal)
             {
-                // --- 横向取模：一行一行地扫 ---
                 int bytesPerRow = (CanvasWidth + 7) / 8;
                 byte[] data = new byte[bytesPerRow * CanvasHeight];
-
                 for (int y = 0; y < CanvasHeight; y++)
                 {
                     for (int x = 0; x < CanvasWidth; x++)
@@ -81,10 +90,8 @@ namespace FC.core
             }
             else
             {
-                // --- 纵向取模：一列一列地扫 (常见于 OLED/LCD) ---
                 int bytesPerCol = (CanvasHeight + 7) / 8;
                 byte[] data = new byte[bytesPerCol * CanvasWidth];
-
                 for (int x = 0; x < CanvasWidth; x++)
                 {
                     for (int y = 0; y < CanvasHeight; y++)
@@ -101,16 +108,14 @@ namespace FC.core
             }
         }
 
-        // 辅助函数 1：判断像素是否为黑
         private bool IsPixelBlack(Bitmap bmp, int x, int y) => bmp.GetPixel(x, y).R < 128;
 
-        // 辅助函数 2：根据位序设置字节里的位
         private void ApplyBit(byte[] data, int byteIdx, int bitOffset)
         {
             if (CurrentBitOrder == BitOrder.MSBFirst)
-                data[byteIdx] |= (byte)(0x80 >> bitOffset); // 高位在起始 (0x80, 0x40...)
+                data[byteIdx] |= (byte)(0x80 >> bitOffset);
             else
-                data[byteIdx] |= (byte)(0x01 << bitOffset); // 低位在起始 (0x01, 0x02...)
+                data[byteIdx] |= (byte)(0x01 << bitOffset);
         }
 
         public void Dispose()
