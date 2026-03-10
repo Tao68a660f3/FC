@@ -210,21 +210,45 @@ namespace FC
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Filter = "字体文件|*.ttf;*.otf|所有文件|*.*";
+                // 1. 设置过滤器，涵盖你 AsciiManager 里支持的所有格式
+                ofd.Filter = "所有支持格式|*.ttf;*.ttc;*.otf;*.bmp;*.bin;*.font";
+
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
+                    string ext = Path.GetExtension(ofd.FileName).ToLower();
                     try
                     {
-                        // 获取当前 UI 上的字号设定并传递给你的 LoadFontFile 函数
-                        float fontSize = (float)numFontSize.Value;
-                        _fontRender.LoadFontFile(ofd.FileName, fontSize);
+                        if (ext == ".ttf" || ext == ".ttc" || ext == ".otf")
+                        {
+                            // 必须传入字号，否则 LoadFontFile 会报错
+                            _fontRender.LoadFontFile(ofd.FileName, (float)numFontSize.Value);
+                            RenderCurrentChar(); // 导入后立即渲染当前预览
+                        }
+                        else if (ext == ".bmp")
+                        {
+                            // 从 BMP 导入 256 个字符网格
+                            _mgr.ImportFromBmp(ofd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender);
+                        }
+                        else if (ext == ".bin")
+                        {
+                            // 导入 BIN 时会自动更新画布尺寸并执行 XOR 解密
+                            if (_mgr.ImportFromBin(ofd.FileName, out int w, out int h))
+                            {
+                                numCanvasW.Value = w;
+                                numCanvasH.Value = h;
+                            }
+                        }
+                        else if (ext == ".font")
+                        {
+                            _mgr.ImportFromFontText(ofd.FileName); // 导入文本格式
+                        }
 
-                        RenderCurrentChar();
-                        MessageBox.Show("字体加载成功！", "提示");
+                        SyncUI(); // 统一刷新界面
+                        MessageBox.Show("导入完成！");
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"字体加载失败: {ex.Message}", "错误");
+                        MessageBox.Show($"解析失败: {ex.Message}");
                     }
                 }
             }
