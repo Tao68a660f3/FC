@@ -235,10 +235,14 @@ namespace FC
 
         private void UpdateCodeSnippet(int index, int size, string c)
         {
-            txtCode.Text = $"// 字符: {c}\r\n" +
-                           $"// 地址 = 基地址 + (Index * 每个字符字节数)\r\n" +
-                           $"uint32_t addr = FONT_BASE + ({index} * {size});\r\n" +
-                           $"// 接下来调用 SPI_Read(addr, buffer, {size});";
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"// 字符: '{c}' | 索引: {index}");
+            sb.AppendLine($"// 寻址算法: 基地址 + (Index * 字节数)");
+            sb.AppendLine($"uint32_t char_offset = {index} * {size};");
+            sb.AppendLine($"uint32_t final_addr = FONT_BASE_ADDR + char_offset;");
+            sb.AppendLine($"// 调用示例: Font_Draw(x, y, final_addr, {numW.Value}, {numH.Value});");
+
+            txtCode.Text = sb.ToString();
         }
     }
 }
