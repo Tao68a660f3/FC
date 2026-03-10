@@ -19,38 +19,44 @@ namespace FC.core
 
         public IEnumerable<ushort> GetEncodingStream()
         {
-            // 按照说明书顺序依次吐出编码
-            // 1区: 0xA1A1 - 0xA9FE (RowSize=94, 不跳过7F)
-            foreach (var c in IterateRegion(0xA1A1, 0xA9FE, false)) yield return c;
+            // 区间 1 (符号区): 0xA1A1 - 0xA9FE (低位 A1-FE, 不含 7F)
+            for (int h = 0xA1; h <= 0xA9; h++)
+                for (int l = 0xA1; l <= 0xFE; l++) yield return (ushort)((h << 8) | l);
 
-            // 5区: 0xA840 - 0xA9A0 (RowSize=97, 跳过7F)
-            foreach (var c in IterateRegion(0xA840, 0xA9A0, true)) yield return c;
+            // 区间 5 (扩充符号): 0xA840 - 0xA9A0 (低位 40-A0, 需跳过 7F)
+            for (int h = 0xA8; h <= 0xA9; h++)
+                for (int l = 0x40; l <= 0xA0; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
 
-            // 2区: 0xB0A1 - 0xF7FE (RowSize=94, 不跳过7F)
-            foreach (var c in IterateRegion(0xB0A1, 0xF7FE, false)) yield return c;
+            // 区间 2 (常用汉字): 0xB0A1 - 0xF7FE (低位 A1-FE, 不含 7F)
+            for (int h = 0xB0; h <= 0xF7; h++)
+                for (int l = 0xA1; l <= 0xFE; l++) yield return (ushort)((h << 8) | l);
 
-            // 3区: 0x8140 - 0xA0FE (RowSize=191, 跳过7F)
-            foreach (var c in IterateRegion(0x8140, 0xA0FE, true)) yield return c;
+            // 区间 3 (扩充 A 区): 0x8140 - 0xA0FE (低位 40-FE, 需跳过 7F)
+            for (int h = 0x81; h <= 0xA0; h++)
+                for (int l = 0x40; l <= 0xFE; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
 
-            // 4区: 0xAA40 - 0xFEA0 (RowSize=97, 跳过7F)
-            foreach (var c in IterateRegion(0xAA40, 0xFEA0, true)) yield return c;
+            // 区间 4 (扩充 B 区): 0xAA40 - 0xFEA0 (低位 40-A0, 需跳过 7F)
+            for (int h = 0xAA; h <= 0xFE; h++)
+                for (int l = 0x40; l <= 0xA0; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
 
-            // 4区补充: 0xFE40 - 0xFE4F
-            foreach (var c in IterateRegion(0xFE40, 0xFE4F, false)) yield return c;
+            // 区间 4b (补丁): 0xFE40 - 0xFE4F
+            for (int l = 0x40; l <= 0x4F; l++) yield return (ushort)(0xFE00 | l);
         }
 
         private IEnumerable<ushort> IterateRegion(ushort start, ushort end, bool skip7F)
         {
             byte startH = (byte)(start >> 8);
+            byte startL = (byte)(start & 0xFF);
             byte endH = (byte)(end >> 8);
+            byte endL = (byte)(end & 0xFF);
 
-            for (byte h = startH; h <= endH; h++)
+            for (int h = startH; h <= endH; h++)
             {
-                // 每行起始和结束的低位
-                byte curStartL = (h == startH) ? (byte)(start & 0xFF) : (byte)0x40;
-                byte curEndL = (h == endH) ? (byte)(end & 0xFF) : (byte)0xFE;
+                // 关键点：除了首行和末行，中间行的低位都是从 0x40 (或 0xA1) 到 0xFE
+                int sL = (h == startH) ? startL : (startL < 0xA1 ? 0x40 : 0xA1);
+                int eL = (h == endH) ? endL : 0xFE;
 
-                for (int l = curStartL; l <= curEndL; l++)
+                for (int l = sL; l <= eL; l++)
                 {
                     if (skip7F && l == 0x7F) continue;
                     yield return (ushort)((h << 8) | (byte)l);

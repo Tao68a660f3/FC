@@ -1,216 +1,255 @@
-using System;
+ï»¿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Text;
 using System.IO;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 using FC.core;
 
 namespace FC
 {
     public partial class Form1 : Form
     {
-        // Âß¼­×é¼ş
         private FontRender _renderer = new FontRender();
         private GeneratorEngine _engine;
 
-        // UI ¿Ø¼ş¶¨Òå
+        // æˆå‘˜å˜é‡å£°æ˜ (ä¿®å¤ä¹‹å‰çš„æ¼å®šä¹‰)
         private TextBox txtFontPath, txtPreviewInput;
         private NumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY;
         private ComboBox cmbScanMode, cmbBitOrder, cmbEncoding;
         private PictureBox picPreview;
         private ProgressBar prgBus;
-        private Label lblStatus;
+        private Label lblStatus, lblFileSizeMsg;
+        private Button btnGo; // å®šä¹‰åœ¨è¿™é‡Œ
 
         public Form1()
         {
-            this.Text = "FontFactory - ¸ß¼¶×Ö¿âÉú³ÉÆ÷";
-            this.Size = new Size(850, 550);
+            this.Text = "FontFactory Pro - å“åº”å¼å­—åº“å·¥ä½œç«™";
+            this.Size = new Size(1000, 700);
+            this.MinimumSize = new Size(800, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.FromArgb(32, 32, 32);
+            this.ForeColor = Color.White;
 
             _engine = new GeneratorEngine(_renderer);
-            InitLayout();
-            BindEvents();
+            InitResponsiveLayout();
+
+            this.Load += Form1_Load;
         }
 
-        private void InitLayout()
+        private void Form1_Load(object sender, EventArgs e)
         {
-            // Ö÷²¼¾Ö£º×ó²à²ÎÊı(350px)£¬ÓÒ²àÔ¤ÀÀ(Ê£Óà)
-            TableLayoutPanel mainLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 350));
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            string defaultFont = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "simsun.ttc");
+            if (File.Exists(defaultFont)) txtFontPath.Text = defaultFont;
 
-            // --- ×ó²à²ÎÊıÃæ°å ---
-            FlowLayoutPanel panelLeft = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10), AutoScroll = true };
+            BindEvents();
+            UpdatePreview();
+        }
 
-            // ×ÖÌåÑ¡Ôñ
-            panelLeft.Controls.Add(new Label { Text = "1. ×ÖÌåÔ´ (External TTF)", AutoSize = true, Font = new Font(this.Font, FontStyle.Bold) });
-            txtFontPath = new TextBox { Width = 220 };
-            Button btnBrowse = new Button { Text = "ä¯ÀÀ...", Width = 70 };
+        private void InitResponsiveLayout()
+        {
+            // ä¸»å®¹å™¨ï¼šå·¦å³åˆ†æ 
+            SplitContainer splitMain = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 380, IsSplitterFixed = false };
+            this.Controls.Add(splitMain);
+
+            // --- å·¦ä¾§ï¼šé…ç½®é¢æ¿ ---
+            FlowLayoutPanel leftFlow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                AutoScroll = true,
+                Padding = new Padding(15),
+                WrapContents = false
+            };
+            splitMain.Panel1.Controls.Add(leftFlow);
+
+            // 1. å­—ä½“æº
+            GroupBox gb1 = CreateModernGroupBox("å­—ä½“èµ„æº", 80);
+            txtFontPath = new TextBox { Width = 240, Location = new Point(15, 35), BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            Button btnBrowse = new Button { Text = "æµè§ˆ", Location = new Point(265, 33), Width = 60, BackColor = Color.FromArgb(70, 70, 70) };
             btnBrowse.Click += (s, e) => {
-                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "×ÖÌåÎÄ¼ş|*.ttf;*.otf;*.ttc" })
+                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "å­—ä½“|*.ttf;*.otf;*.ttc" })
                     if (ofd.ShowDialog() == DialogResult.OK) txtFontPath.Text = ofd.FileName;
             };
-            FlowLayoutPanel rowFont = new FlowLayoutPanel { Width = 320, Height = 30 };
-            rowFont.Controls.AddRange(new Control[] { txtFontPath, btnBrowse });
-            panelLeft.Controls.Add(rowFont);
+            gb1.Controls.Add(txtFontPath); gb1.Controls.Add(btnBrowse);
+            leftFlow.Controls.Add(gb1);
 
-            // äÖÈ¾³ß´ç¿ØÖÆ
-            panelLeft.Controls.Add(new Label { Text = "2. äÖÈ¾²ÎÊı (Pixel Size)", AutoSize = true, Font = new Font(this.Font, FontStyle.Bold), Margin = new Padding(0, 10, 0, 0) });
-            numFontSize = CreateNumPair(panelLeft, "×ÖºÅ (Size):", 16);
-            numCanvasW = CreateNumPair(panelLeft, "»­²¼¿í (W):", 16);
-            numCanvasH = CreateNumPair(panelLeft, "»­²¼¸ß (H):", 16);
-            numOffsetX = CreateNumPair(panelLeft, "Æ«ÒÆ X:", 0);
-            numOffsetY = CreateNumPair(panelLeft, "Æ«ÒÆ Y:", 0);
+            // 2. æ¸²æŸ“æ ¸å¿ƒ (ç½‘æ ¼å¸ƒå±€)
+            GroupBox gb2 = CreateModernGroupBox("å°ºå¯¸ä¸åç§»", 160);
+            TableLayoutPanel gridRender = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3, Padding = new Padding(5, 20, 5, 5) };
+            gb2.Controls.Add(gridRender);
 
-            // µ¼³öÅäÖÃ
-            panelLeft.Controls.Add(new Label { Text = "3. µ¼³öÉèÖÃ (Output Config)", AutoSize = true, Font = new Font(this.Font, FontStyle.Bold), Margin = new Padding(0, 10, 0, 0) });
-            cmbScanMode = CreateCombo(panelLeft, "É¨ÃèÄ£Ê½:", typeof(ScanMode));
-            cmbBitOrder = CreateCombo(panelLeft, "Î»Ğò(Bit):", typeof(BitOrder));
-            cmbEncoding = new ComboBox { Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22084", "GB2312_Standard" });
+            numFontSize = AddGridNum(gridRender, "å­—å·:", 16, 0, 0);
+            numCanvasW = AddGridNum(gridRender, "ç”»å¸ƒå®½:", 16, 1, 0);
+            numCanvasH = AddGridNum(gridRender, "ç”»å¸ƒé«˜:", 16, 1, 1);
+            numOffsetX = AddGridNum(gridRender, "åç§» X:", 0, 2, 0);
+            numOffsetY = AddGridNum(gridRender, "åç§» Y:", 0, 2, 1); // æˆ‘ä»¬åœ¨é€»è¾‘é‡Œç¿»è½¬å®ƒ
+
+            lblFileSizeMsg = new Label { Text = "é¢„è®¡: 0 KB", ForeColor = Color.Orange, AutoSize = true, Dock = DockStyle.Bottom };
+            gb2.Controls.Add(lblFileSizeMsg);
+            leftFlow.Controls.Add(gb2);
+
+            // 3. æ‰«æå‚æ•°
+            GroupBox gb3 = CreateModernGroupBox("è¾“å‡ºæ ¼å¼", 150);
+            cmbScanMode = AddFlowCombo(gb3, "æ‰«ææ¨¡å¼:", typeof(ScanMode), 30);
+            cmbBitOrder = AddFlowCombo(gb3, "ä½åºæ§åˆ¶:", typeof(BitOrder), 70);
+            cmbEncoding = AddFlowCombo(gb3, "ç¼–ç é€‰æ‹©:", null, 110);
+            cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22062", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
-            panelLeft.Controls.Add(new Label { Text = "±àÂëÄ£Ê½:" });
-            panelLeft.Controls.Add(cmbEncoding);
+            leftFlow.Controls.Add(gb3);
 
-            // Éú³É°´Å¥
-            Button btnGo = new Button { Text = "¿ªÊ¼Éú³ÉÈ«×Ö¿â (.bin)", Width = 300, Height = 40, Margin = new Padding(0, 20, 0, 0), BackColor = Color.LightSteelBlue };
+            // 4. æ‰§è¡ŒåŒº
+            btnGo = new Button { Text = "å¼€å§‹ç”Ÿæˆ (.bin)", Width = 340, Height = 50, BackColor = Color.FromArgb(0, 122, 204), FlatStyle = FlatStyle.Flat, Font = new Font(this.Font, FontStyle.Bold) };
             btnGo.Click += BtnGo_Click;
-            panelLeft.Controls.Add(btnGo);
+            leftFlow.Controls.Add(btnGo);
 
-            prgBus = new ProgressBar { Width = 300, Height = 15, Margin = new Padding(0, 10, 0, 0) };
-            panelLeft.Controls.Add(prgBus);
-            lblStatus = new Label { Text = "¾ÍĞ÷", Width = 300 };
-            panelLeft.Controls.Add(lblStatus);
+            prgBus = new ProgressBar { Width = 340, Height = 10, Margin = new Padding(0, 10, 0, 0) };
+            leftFlow.Controls.Add(prgBus);
+            lblStatus = new Label { Text = "å‡†å¤‡å°±ç»ª", AutoSize = true, ForeColor = Color.Gray };
+            leftFlow.Controls.Add(lblStatus);
 
-            // --- ÓÒ²àÔ¤ÀÀÃæ°å ---
-            FlowLayoutPanel panelRight = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(20), BackColor = Color.FromArgb(45, 45, 48) };
-            panelRight.Controls.Add(new Label { Text = "ÊµÊ±µãÕóÔ¤ÀÀ (Real-time Preview)", ForeColor = Color.White, AutoSize = true });
-            txtPreviewInput = new TextBox { Text = "ÎÒ", Font = new Font("Î¢ÈíÑÅºÚ", 12), Width = 100 };
-            panelRight.Controls.Add(txtPreviewInput);
+            // --- å³ä¾§ï¼šé¢„è§ˆé¢æ¿ (å“åº”å¼ PictureBox) ---
+            Panel rightPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+            splitMain.Panel2.Controls.Add(rightPanel);
 
-            picPreview = new PictureBox { Width = 400, Height = 400, Margin = new Padding(0, 20, 0, 0), BorderStyle = BorderStyle.FixedSingle };
-            panelRight.Controls.Add(picPreview);
+            txtPreviewInput = new TextBox { Text = "æ±‰", Font = new Font("å¾®è½¯é›…é»‘", 14), Width = 100, Dock = DockStyle.Top, BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.White, TextAlign = HorizontalAlignment.Center };
+            rightPanel.Controls.Add(txtPreviewInput);
 
-            mainLayout.Controls.Add(panelLeft, 0, 0);
-            mainLayout.Controls.Add(panelRight, 1, 0);
-            this.Controls.Add(mainLayout);
+            picPreview = new PictureBox
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 20, 0, 0),
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.Black,
+                SizeMode = PictureBoxSizeMode.Zoom // è‡ªåŠ¨ç¼©æ”¾
+            };
+            rightPanel.Controls.Add(picPreview);
+            // è§£å†³ Dock åé¡ºåºé—®é¢˜
+            picPreview.BringToFront();
         }
 
-        private NumericUpDown CreateNumPair(Control parent, string text, int def)
+        private GroupBox CreateModernGroupBox(string title, int height)
         {
-            parent.Controls.Add(new Label { Text = text, AutoSize = true });
-            var n = new NumericUpDown { Value = def, Minimum = -128, Maximum = 128, Width = 80 };
-            parent.Controls.Add(n);
+            return new GroupBox { Text = title, Width = 345, Height = height, ForeColor = Color.LightSkyBlue, Margin = new Padding(0, 0, 0, 15) };
+        }
+
+        private NumericUpDown AddGridNum(TableLayoutPanel grid, string label, int def, int row, int col)
+        {
+            grid.Controls.Add(new Label { Text = label, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, col * 2, row);
+            var n = new NumericUpDown { Value = def, Minimum = -128, Maximum = 128, Dock = DockStyle.Fill, BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
+            grid.Controls.Add(n, col * 2 + 1, row);
             return n;
         }
 
-        private ComboBox CreateCombo(Control parent, string text, Type enumType)
+        private ComboBox AddFlowCombo(GroupBox gb, string text, Type enumType, int y)
         {
-            parent.Controls.Add(new Label { Text = text, AutoSize = true });
-            var c = new ComboBox { DataSource = Enum.GetValues(enumType), Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
-            parent.Controls.Add(c);
+            gb.Controls.Add(new Label { Text = text, Location = new Point(15, y + 3), AutoSize = true });
+            var c = new ComboBox { Location = new Point(100, y), Width = 220, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(50, 50, 50), ForeColor = Color.White };
+            if (enumType != null) c.DataSource = Enum.GetValues(enumType);
+            gb.Controls.Add(c);
             return c;
         }
 
         private void BindEvents()
         {
-            // Ö»Òª²ÎÊı±äÁË£¬Á¢¿Ì¸üĞÂÔ¤ÀÀ
-            EventHandler update = (s, e) => UpdatePreview();
-            numFontSize.ValueChanged += update;
-            numCanvasW.ValueChanged += update;
-            numCanvasH.ValueChanged += update;
-            numOffsetX.ValueChanged += update;
-            numOffsetY.ValueChanged += update;
-            txtPreviewInput.TextChanged += update;
-            cmbScanMode.SelectedIndexChanged += update;
-            cmbBitOrder.SelectedIndexChanged += update;
-
-            // ³õÊ¼¼ÓÔØ
-            this.Load += (s, e) => UpdatePreview();
+            Action update = () => { CalculateInfo(); UpdatePreview(); };
+            numFontSize.ValueChanged += (s, e) => update();
+            numCanvasW.ValueChanged += (s, e) => update();
+            numCanvasH.ValueChanged += (s, e) => update();
+            numOffsetX.ValueChanged += (s, e) => update();
+            numOffsetY.ValueChanged += (s, e) => update(); // æ­¤æ—¶ Y å˜åŒ–ä¹Ÿä¼šè§¦å‘é¢„è§ˆ
+            txtFontPath.TextChanged += (s, e) => update();
+            txtPreviewInput.TextChanged += (s, e) => update();
+            cmbScanMode.SelectedIndexChanged += (s, e) => update();
+            cmbBitOrder.SelectedIndexChanged += (s, e) => update();
+            this.Resize += (s, e) => UpdatePreview(); // çª—å£ç¼©æ”¾æ—¶é‡ç»˜é¢„è§ˆå›¾
         }
 
         private void UpdatePreview()
         {
-            if (string.IsNullOrEmpty(txtFontPath.Text) || !File.Exists(txtFontPath.Text)) return;
-            if (string.IsNullOrEmpty(txtPreviewInput.Text)) return;
+            if (!File.Exists(txtFontPath.Text) || string.IsNullOrEmpty(txtPreviewInput.Text)) return;
 
             try
             {
                 _renderer.LoadFontFile(txtFontPath.Text, (float)numFontSize.Value);
                 _renderer.CanvasWidth = (int)numCanvasW.Value;
                 _renderer.CanvasHeight = (int)numCanvasH.Value;
+
+                // ä¿®æ­£åç§»æ–¹å‘ï¼šè®©ç”¨æˆ·è§‰å¾— OffsetY å˜å¤§æ˜¯â€œå‘ä¸Šç§»â€
                 _renderer.OffsetX = (int)numOffsetX.Value;
-                _renderer.OffsetY = (int)numOffsetY.Value;
+                _renderer.OffsetY = -(int)numOffsetY.Value;
+
                 _renderer.CurrentScanMode = (ScanMode)cmbScanMode.SelectedItem;
                 _renderer.CurrentBitOrder = (BitOrder)cmbBitOrder.SelectedItem;
 
                 byte[] data = _renderer.RenderChar(txtPreviewInput.Text.Substring(0, 1));
-                DrawPixelGrid(data);
-            }
-            catch { /* ×ÖÌå¼ÓÔØÖĞÔİºöÂÔ´íÎó */ }
-        }
 
-        private void DrawPixelGrid(byte[] data)
-        {
-            int w = (int)numCanvasW.Value;
-            int h = (int)numCanvasH.Value;
-            Bitmap bmp = new Bitmap(picPreview.Width, picPreview.Height);
-            int blockSize = Math.Min(picPreview.Width / w, picPreview.Height / h);
+                // ç»˜åˆ¶é¢„è§ˆå›¾
+                int w = _renderer.CanvasWidth;
+                int h = _renderer.CanvasHeight;
+                Bitmap bmp = new Bitmap(512, 512); // ä½¿ç”¨å›ºå®šå¤§å°ºå¯¸ç”»å¸ƒï¼Œé  SizeMode.Zoom é€‚é…
+                int blockSize = 512 / Math.Max(w, h);
 
-            using (Graphics g = Graphics.FromImage(bmp))
-            {
-                g.Clear(Color.Black);
-                int bytesPerRow = (w + 7) / 8;
-
-                for (int y = 0; y < h; y++)
+                using (Graphics g = Graphics.FromImage(bmp))
                 {
-                    for (int x = 0; x < w; x++)
+                    g.Clear(Color.Black);
+                    for (int y = 0; y < h; y++)
                     {
-                        // ÕâÀïÂß¼­ÒªºÍäÖÈ¾Æ÷ ConvertTo1Bpp Ò»ÖÂ
-                        bool isSet = false;
-                        if (_renderer.CurrentScanMode == ScanMode.Horizontal)
+                        for (int x = 0; x < w; x++)
                         {
-                            int byteIdx = y * bytesPerRow + (x / 8);
-                            int bitOffset = x % 8;
-                            isSet = _renderer.CurrentBitOrder == BitOrder.MSBFirst ?
-                                (data[byteIdx] & (0x80 >> bitOffset)) != 0 : (data[byteIdx] & (0x01 << bitOffset)) != 0;
+                            bool isSet = GetBitFromData(data, x, y, w, h);
+                            if (isSet) g.FillRectangle(Brushes.Lime, x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
+                            else g.FillRectangle(new SolidBrush(Color.FromArgb(30, 30, 30)), x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
                         }
-                        else
-                        {
-                            int bytesPerCol = (h + 7) / 8;
-                            int byteIdx = x * bytesPerCol + (y / 8);
-                            int bitOffset = y % 8;
-                            isSet = _renderer.CurrentBitOrder == BitOrder.MSBFirst ?
-                                (data[byteIdx] & (0x80 >> bitOffset)) != 0 : (data[byteIdx] & (0x01 << bitOffset)) != 0;
-                        }
-
-                        Brush b = isSet ? Brushes.Lime : new SolidBrush(Color.FromArgb(40, 40, 40));
-                        g.FillRectangle(b, x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
                     }
                 }
+                picPreview.Image = bmp;
             }
-            picPreview.Image = bmp;
+            catch { }
+        }
+
+        // è¿™é‡Œçš„é€»è¾‘å¤ç”¨ä½ ä¹‹å‰çš„ Bit åˆ¤æ–­
+        private bool GetBitFromData(byte[] data, int x, int y, int w, int h)
+        {
+            if (cmbScanMode.SelectedIndex == 0)
+            { // Horizontal
+                int bpr = (w + 7) / 8;
+                int byteIdx = y * bpr + (x / 8);
+                int bit = x % 8;
+                return cmbBitOrder.SelectedIndex == 0 ? (data[byteIdx] & (0x80 >> bit)) != 0 : (data[byteIdx] & (0x01 << bit)) != 0;
+            }
+            else
+            { // Vertical
+                int bpc = (h + 7) / 8;
+                int byteIdx = x * bpc + (y / 8);
+                int bit = y % 8;
+                return cmbBitOrder.SelectedIndex == 0 ? (data[byteIdx] & (0x80 >> bit)) != 0 : (data[byteIdx] & (0x01 << bit)) != 0;
+            }
+        }
+
+        private void CalculateInfo()
+        {
+            int charCount = (cmbEncoding.SelectedIndex == 0) ? 22062 : 6768;
+            int bytesPerChar = ((int)numCanvasW.Value + 7) / 8 * (int)numCanvasH.Value;
+            lblFileSizeMsg.Text = $"é¢„è®¡: {charCount * bytesPerChar / 1024} KB ({charCount} å­—)";
         }
 
         private async void BtnGo_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(txtFontPath.Text)) return;
+            if (!File.Exists(txtFontPath.Text)) return;
+            btnGo.Enabled = false;
+            btnGo.Text = "æ­£åœ¨è¾“å‡º...";
 
-            IEncodingProvider provider = cmbEncoding.SelectedIndex == 0 ?
-                (IEncodingProvider)new GbkCustomProvider() : new Gb2312Provider();
-
-            string savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "font_out.bin");
-
-            await _engine.GenerateAsync(provider, savePath, (cur, total) => {
+            await _engine.GenerateAsync(new GbkCustomProvider(), "output.bin", (cur, total) => {
                 this.Invoke(new Action(() => {
                     prgBus.Maximum = total;
                     prgBus.Value = cur;
-                    lblStatus.Text = $"Éú³ÉÖĞ: {cur}/{total}";
+                    lblStatus.Text = $"å¤„ç†ä¸­: {cur}/{total}";
                 }));
             });
 
-            MessageBox.Show($"×Ö¿âÒÑÉú³É!\nÂ·¾¶: {savePath}\n´óĞ¡: {new FileInfo(savePath).Length / 1024} KB");
+            btnGo.Enabled = true;
+            btnGo.Text = "å¼€å§‹ç”Ÿæˆ (.bin)";
+            MessageBox.Show("å­—åº“ç”ŸæˆæˆåŠŸï¼");
         }
     }
 }
