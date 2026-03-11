@@ -337,11 +337,11 @@ namespace FC.core
                         }
                     }
 
-                    //// 写入并执行母本要求的唯一加密：XOR i (不要取反 ~)
-                    //for (int j = 0; j < charData.Length; j++)
-                    //{
-                    //    bw.Write((byte)(charData[j] ^ i));
-                    //}
+                    // 写入
+                    for (int j = 0; j < charData.Length; j++)
+                    {
+                        bw.Write((byte)charData[j]);
+                    }
 
                     if (isTemp)
                         targetBmp.Dispose();
