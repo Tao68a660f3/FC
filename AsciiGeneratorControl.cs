@@ -1,7 +1,4 @@
 ﻿#nullable disable
-using System;
-using System.Drawing;
-using System.Windows.Forms;
 using FC.core;
 
 namespace FC.ui
@@ -215,7 +212,12 @@ namespace FC.ui
             btnLoadTTF.Click += (s, e) =>
             {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.ttc;*.otf" })
-                    if (ofd.ShowDialog() == DialogResult.OK) { txtFontPath.Text = ofd.FileName; _lastTtfPath = ofd.FileName; UpdateVectorPreview(); }
+                    if (ofd.ShowDialog() == DialogResult.OK)
+                    {
+                        txtFontPath.Text = ofd.FileName;
+                        _lastTtfPath = ofd.FileName;
+                        UpdateVectorPreview();
+                    }
             };
 
             // 数值改变即触发预览更新
@@ -302,14 +304,17 @@ namespace FC.ui
             btnSaveBin.Click += (s, e) =>
             {
                 using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Binary|*.bin" })
-                    if (sfd.ShowDialog() == DialogResult.OK) _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender); //
+                    if (sfd.ShowDialog() == DialogResult.OK)
+                        _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender); //
             };
 
             // --- 导航与平移 ---
             btnApplyShift.Click += (s, e) =>
             {
-                _mgr.ApplyShift(_currentIdx, (int)numShiftX.Value, (int)numShiftY.Value); //
-                numShiftX.Value = 0; numShiftY.Value = 0; SyncUI(false);
+                _mgr.ApplyShift(_currentIdx, -(int)numShiftX.Value, -(int)numShiftY.Value); //
+                numShiftX.Value = 0;
+                numShiftY.Value = 0;
+                SyncUI(false);
             };
 
             numAsciiIdx.ValueChanged += (s, e) => { _currentIdx = (int)numAsciiIdx.Value; txtAsciiChar.Text = ((char)_currentIdx).ToString(); OnIdxChanged(); };
@@ -322,9 +327,35 @@ namespace FC.ui
             pixelEditor.DataChanged += () => { _mgr.AsciiSet[_currentIdx].IsManual = true; chkLocked.Checked = true; }; //
         }
 
-        private void OnIdxChanged() { numActiveWidth.Value = _mgr.AsciiSet[_currentIdx].Width; chkLocked.Checked = _mgr.AsciiSet[_currentIdx].IsManual; SyncPreview(); }
-        private void UpdateVectorPreview() { if (string.IsNullOrEmpty(_lastTtfPath)) return; _fontRender.LoadFontFile(_lastTtfPath, (float)numFontSize.Value); _fontRender.OffsetX = (int)numFontOffsetX.Value; _fontRender.OffsetY = (int)numFontOffsetY.Value; _fontRender.ScaleX = (int)numFontScaleX.Value; _fontRender.ScaleY = (int)numFontScaleY.Value; _mgr.UpdateVectorPreview(_currentIdx, _fontRender); SyncUI(true); }
-        private void SyncPreview() { _mgr.UpdateShiftPreview(_currentIdx, 0, 0); SyncUI(false); }
-        private void SyncUI(bool isPreview) { pixelEditor.CanvasW = (int)numCanvasW.Value; pixelEditor.CanvasH = (int)numCanvasH.Value; pixelEditor.ActiveWidth = (int)numActiveWidth.Value; pixelEditor.CurrentBitmap = isPreview ? _mgr.PreviewBitmap : _mgr.AsciiSet[_currentIdx].Glyph; }
+        private void OnIdxChanged()
+        {
+            numActiveWidth.Value = _mgr.AsciiSet[_currentIdx].Width;
+            chkLocked.Checked = _mgr.AsciiSet[_currentIdx].IsManual;
+            SyncPreview();
+        }
+        private void UpdateVectorPreview()
+        {
+            if (string.IsNullOrEmpty(_lastTtfPath))
+                return;
+            _fontRender.LoadFontFile(_lastTtfPath, (float)numFontSize.Value);
+            _fontRender.OffsetX = -(int)numFontOffsetX.Value;
+            _fontRender.OffsetY = -(int)numFontOffsetY.Value;
+            _fontRender.ScaleX = (int)numFontScaleX.Value;
+            _fontRender.ScaleY = (int)numFontScaleY.Value;
+            _mgr.UpdateVectorPreview(_currentIdx, _fontRender);
+            SyncUI(true);
+        }
+        private void SyncPreview()
+        {
+            _mgr.UpdateShiftPreview(_currentIdx, 0, 0);
+            SyncUI(false);
+        }
+        private void SyncUI(bool isPreview)
+        {
+            pixelEditor.CanvasW = (int)numCanvasW.Value;
+            pixelEditor.CanvasH = (int)numCanvasH.Value;
+            pixelEditor.ActiveWidth = (int)numActiveWidth.Value;
+            pixelEditor.CurrentBitmap = isPreview ? _mgr.PreviewBitmap : _mgr.AsciiSet[_currentIdx].Glyph;
+        }
     }
 }
