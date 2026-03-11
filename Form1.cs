@@ -14,6 +14,7 @@ namespace FC
         public Form1()
         {
             this.Size = new Size(1200, 800);
+            this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             // 1. 建立一个全局表格布局
             TableLayoutPanel rootLayout = new TableLayoutPanel
@@ -50,12 +51,8 @@ namespace FC
             ToolStripMenuItem mnuMode = new ToolStripMenuItem("工作模式(&M)");
 
             var itemGbk = new ToolStripMenuItem("GBK/GB2312 生成器", null, (s, e) => SwitchModule(new GbkGeneratorControl()));
-            var itemAscii = new ToolStripMenuItem("ASCII 标准字库", null, (s, e) => {
-                //MessageBox.Show("ASCII 模式正在开发中，即将上线！", "预告");
-                 //待会儿我们要写的：
-                 SwitchModule(new AsciiGeneratorControl());
-            });
-            var itemInspect = new ToolStripMenuItem("字库校验与参考代码", null, (s, e) => SwitchModule(new FontInspectorControl()));
+            var itemAscii = new ToolStripMenuItem("ASCII 标准字库", null, (s, e) => SwitchModule(new AsciiGeneratorControl()));
+            var itemInspect = new ToolStripMenuItem("字库校验", null, (s, e) => SwitchModule(new FontInspectorControl()));
 
             mnuMode.DropDownItems.AddRange(new ToolStripItem[] { itemGbk, itemAscii, new ToolStripSeparator(), itemInspect });
 
@@ -88,7 +85,13 @@ namespace FC
             _moduleContainer.Controls.Add(module);
 
             // 同步窗体标题（可选，增加仪式感）
-            string modeName = module is GbkGeneratorControl ? "中文生成模式" : "字库检查模式";
+            string modeName = module switch
+            {
+                GbkGeneratorControl => "GBK/GB2312 生成模式",
+                AsciiGeneratorControl => "ASCII 标准字库模式",
+                FontInspectorControl => "字库校验模式",
+                _ => "未知模式"
+            };
             this.Text = $"FontFactory Pro - {modeName}";
         }
     }
