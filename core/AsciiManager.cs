@@ -132,41 +132,69 @@ namespace FC.core
         public bool ImportFromBin(string path, out int canvasW, out int canvasH)
         {
             canvasW = 16; canvasH = 16;
-            using (BinaryReader br = new BinaryReader(File.OpenRead(path)))
+            try
             {
-                if (new string(br.ReadChars(4)) != "FONT") return false;
-                canvasH = br.ReadByte();
-                canvasW = br.ReadByte();
-                int bpc = br.ReadUInt16();
-                br.ReadBytes(8);
-                for (int i = 0; i < 256; i++) AsciiSet[i].Width = br.ReadByte();
-                for (int i = 0; i < 256; i++)
+                using (BinaryReader br = new BinaryReader(File.OpenRead(path)))
                 {
-                    byte[] data = br.ReadBytes(bpc);
-                    AsciiSet[i].Glyph?.Dispose();
-                    AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, i); // XOR i 解密
-                    AsciiSet[i].IsManual = true;
+                    if (new string(br.ReadChars(4)) != "FONT") return false;
+                    canvasH = br.ReadByte();
+                    canvasW = br.ReadByte();
+                    int bpc = br.ReadUInt16(); // 每字符占用的字节数
+                    br.ReadBytes(8); // 跳过保留位
+
+                    for (int i = 0; i < 256; i++) AsciiSet[i].Width = br.ReadByte();
+
+                    for (int i = 0; i < 256; i++)
+                    {
+                        byte[] data = br.ReadBytes(bpc);
+                        AsciiSet[i].Glyph?.Dispose();
+                        // 关键：Convert1BppToBitmap 内部已经包含了 XOR i 和位解析逻辑
+                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, i);
+                        AsciiSet[i].IsManual = true;
+                    }
                 }
+                return true;
             }
-            return true;
+            catch { return false; }
         }
 
-        public void ImportFromFontText(string path)
+        // 增加 out 参数，确保尺寸能带回 UI
+        public bool ImportFromFontText(string path, out int canvasW, out int canvasH)
         {
-            string[] lines = File.ReadAllLines(path);
-            if (lines.Length < 3) return;
-            int canvasW = int.Parse(lines[1].Split(',')[0]);
-            int canvasH = int.Parse(lines[1].Split(',')[1]);
-            for (int i = 2; i + 2 < lines.Length; i += 3)
+            canvasW = 16; canvasH = 16; // 默认值
+            string[] lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
+            if (lines.Length < 3) return false;
+
+            try
             {
-                int ascii = int.Parse(lines[i].Split(',')[0]);
-                int w = int.Parse(lines[i + 1].Split(',')[0]);
-                byte[] data = lines[i + 2].Trim().Split(',').Select(s => Convert.ToByte(s, 16)).ToArray();
-                AsciiSet[ascii].Glyph?.Dispose();
-                AsciiSet[ascii].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, ascii); // XOR ascii 解密
-                AsciiSet[ascii].Width = w;
-                AsciiSet[ascii].IsManual = true;
+                // 1. 解析并导出画布尺寸
+                var sizeParts = lines[1].Split(',');
+                canvasW = int.Parse(sizeParts[0]);
+                canvasH = int.Parse(sizeParts[1]);
+
+                for (int i = 2; i + 2 < lines.Length; i += 3)
+                {
+                    int ascii = int.Parse(lines[i].Split(',')[0]);
+                    int charW = int.Parse(lines[i + 1].Split(',')[0]);
+
+                    // 处理数据行，支持末尾带逗号的情况
+                    byte[] data = lines[i + 2].TrimEnd(',')
+                                  .Split(',')
+                                  .Select(s => Convert.ToByte(s.Trim(), 16))
+                                  .ToArray();
+
+                    if (ascii >= 0 && ascii < 256)
+                    {
+                        AsciiSet[ascii].Glyph?.Dispose();
+                        // 使用解析出的尺寸创建位图
+                        AsciiSet[ascii].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, ascii);
+                        AsciiSet[ascii].Width = charW;
+                        AsciiSet[ascii].IsManual = true;
+                    }
+                }
+                return true;
             }
+            catch { return false; }
         }
 
         public void ImportFromBmp(string path, int cellW, int cellH)
@@ -176,13 +204,21 @@ namespace FC.core
                 int cols = src.Width / cellW;
                 for (int i = 0; i < 256; i++)
                 {
-                    int x = (i % cols) * cellW;
-                    int y = (i / cols) * cellH;
-                    if (y + cellH > src.Height) break;
-                    Rectangle rect = new Rectangle(x, y, cellW, cellH);
+                    int startX = (i % cols) * cellW;
+                    int startY = (i / cols) * cellH;
+                    if (startY + cellH > src.Height || startX + cellW > src.Width) break;
+
+                    // 修复：不要直接 Clone，而是创建新位图并绘制，以强制转为非索引格式
+                    Bitmap target = new Bitmap(cellW, cellH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    using (Graphics g = Graphics.FromImage(target))
+                    {
+                        g.DrawImage(src, new Rectangle(0, 0, cellW, cellH),
+                                   new Rectangle(startX, startY, cellW, cellH), GraphicsUnit.Pixel);
+                    }
+
                     AsciiSet[i].Glyph?.Dispose();
-                    AsciiSet[i].Glyph = src.Clone(rect, src.PixelFormat);
-                    AsciiSet[i].Width = CalculateWidth(AsciiSet[i].Glyph); // 自动测量
+                    AsciiSet[i].Glyph = target;
+                    AsciiSet[i].Width = CalculateWidth(target);
                     AsciiSet[i].IsManual = true;
                 }
             }
@@ -215,19 +251,31 @@ namespace FC.core
             return bmp.Width / 2;
         }
 
+        // 修正后的位转换函数：保持纯净，只做一次解密和一次位判定
         private Bitmap Convert1BppToBitmap(byte[] data, int w, int h, int xorKey)
         {
-            Bitmap bmp = new Bitmap(w, h);
-            int stride = (w + 7) / 8;
+            // 强制使用 32bpp 避免 SetPixel 崩溃
+            Bitmap bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            int stride = (w + 7) / 8; // 每行占用的字节数
+
             for (int y = 0; y < h; y++)
+            {
                 for (int x = 0; x < w; x++)
                 {
-                    int idx = y * stride + (x / 8);
-                    if (idx < data.Length && (((data[idx] ^ xorKey) & (0x80 >> (x % 8))) != 0))
-                        bmp.SetPixel(x, y, Color.White);
-                    else
-                        bmp.SetPixel(x, y, Color.Black);
+                    int byteIdx = y * stride + (x / 8);
+                    if (byteIdx < data.Length)
+                    {
+                        // 1. 仅在此处执行一次 XOR 解密
+                        byte b = (byte)(data[byteIdx] ^ xorKey);
+
+                        // 2. 根据大端序提取位：第0列对应 0x80, 第1列对应 0x40...
+                        // 使用 (0x80 >> (x % 8)) 是最直观的 MSB 提取方式
+                        bool isOn = (b & (0x80 >> (x % 8))) != 0;
+
+                        bmp.SetPixel(x, y, isOn ? Color.White : Color.Black);
+                    }
                 }
+            }
             return bmp;
         }
 
