@@ -20,7 +20,6 @@ namespace FC
         private NumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY, numScaleX, numScaleY;
         private ComboBox cmbScanMode, cmbBitOrder, cmbEncoding;
         private PictureBox picPreview;
-        private ProgressBar prgBus;
         private Label lblStatus, lblFileSizeMsg;
         private Button btnGo; // 定义在这里
 
@@ -170,9 +169,7 @@ namespace FC
             Panel runPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 10, 0, 0) };
             btnGo = new Button { Text = "🚀 开始生成 (.bin)", Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(0, 122, 204), FlatStyle = FlatStyle.Flat, Font = new Font(this.Font, FontStyle.Bold) };
             btnGo.Click += BtnGo_Click;
-            prgBus = new ProgressBar { Dock = DockStyle.Top, Height = 10, Margin = new Padding(0, 10, 0, 0) };
             lblStatus = new Label { Text = "准备就绪", Dock = DockStyle.Bottom, Height = 25, ForeColor = Color.Gray };
-            runPanel.Controls.Add(prgBus);
             runPanel.Controls.Add(btnGo);
             runPanel.Controls.Add(lblStatus);
             leftGrid.Controls.Add(runPanel, 0, 3);
@@ -293,11 +290,12 @@ namespace FC
             lblFileSizeMsg.Text = $"预计: {totalBytes / 1024.0:F2} KB ({charCount} 字)";
         }
 
-        private async void BtnGo_Click(object sender, EventArgs e)
+        private void BtnGo_Click(object sender, EventArgs e)
         {
-            if (!File.Exists(txtFontPath.Text)) return;
+            if (!File.Exists(txtFontPath.Text))
+                return;
 
-            // --- 新增：弹出保存对话框 ---
+            // 1. 弹出保存对话框
             string savePath = "";
             using (SaveFileDialog sfd = new SaveFileDialog
             {
@@ -305,41 +303,49 @@ namespace FC
                 FileName = (cmbEncoding.SelectedIndex == 0 ? "GBK_Custom" : "GB2312_Std") + ".bin"
             })
             {
-                if (sfd.ShowDialog() != DialogResult.OK) return;
+                if (sfd.ShowDialog() != DialogResult.OK)
+                    return;
                 savePath = sfd.FileName;
             }
 
-            btnGo.Enabled = false;
-            btnGo.Text = "正在输出...";
-
-            // 实例化 Provider (记得传参区分模式)
+            // 2. 准备 Provider 和参数
             IEncodingProvider provider = (cmbEncoding.SelectedIndex == 1)
                 ? (IEncodingProvider)new Gb2312Provider()
                 : (IEncodingProvider)new GbkCustomProvider();
 
-            // 同步 UI 参数到渲染器
-            _renderer.CurrentScanMode = (ScanMode)cmbScanMode.SelectedItem;
-            _renderer.CurrentBitOrder = (BitOrder)cmbBitOrder.SelectedItem;
-            _renderer.CanvasWidth = (int)numCanvasW.Value;
-            _renderer.CanvasHeight = (int)numCanvasH.Value;
-            _renderer.OffsetX = (int)numOffsetX.Value;
-            _renderer.OffsetY = -(int)numOffsetY.Value;
-            _renderer.ScaleX = (int)numScaleX.Value;
-            _renderer.ScaleY = (int)numScaleY.Value;
+            // 3. 实例化模态进度小窗
+            FrmProgress frm = new FrmProgress();
 
-            await _engine.GenerateAsync(provider, savePath, (cur, total) => // 使用 savePath
+            // 在小窗口显示后立即开始任务
+            frm.Shown += async (s, ev) =>
             {
-                this.Invoke(new Action(() =>
+                try
                 {
-                    prgBus.Maximum = total;
-                    prgBus.Value = cur;
-                    lblStatus.Text = $"处理中: {cur}/{total}";
-                }));
-            });
+                    // 这里依然可以使用 await，因为模态窗体已经锁死了主界面
+                    await _engine.GenerateAsync(provider, savePath, (cur, total) =>
+                    {
+                        // 通过 Invoke 更新小窗体上的进度
+                        frm.Invoke(new Action(() =>
+                        {
+                            frm.ProgressBar.Maximum = total;
+                            frm.ProgressBar.Value = cur;
+                            frm.LabelStatus.Text = $"正在处理第 {cur} / {total} 个字符...";
+                        }));
+                    });
 
-            btnGo.Enabled = true;
-            btnGo.Text = "🚀 开始生成 (.bin)";
-            MessageBox.Show("字库生成成功！");
+                    frm.Close(); // 任务完成后关闭小窗
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("生成失败: " + ex.Message);
+                    frm.Close();
+                }
+            };
+
+            // 4. 以模态方式启动小窗 (这一步会冻结主窗体)
+            frm.ShowDialog(this);
+
+            MessageBox.Show("字库生成成功！", "提示");
         }
     }
 }
