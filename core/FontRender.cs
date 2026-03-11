@@ -113,7 +113,17 @@ namespace FC.core
             }
         }
 
-        private bool IsPixelBlack(Bitmap bmp, int x, int y) => bmp.GetPixel(x, y).R < 128;
+        public bool IsPixelBlack(Bitmap bmp, int x, int y)
+        {
+            // 增加极致保险：如果坐标超出当前位图实际尺寸，直接判定为“背景（非黑）”
+            if (bmp == null || x < 0 || y < 0 || x >= bmp.Width || y >= bmp.Height)
+                return true;
+
+            Color c = bmp.GetPixel(x, y);
+            // 根据你的颜色定义：White 是字，黑色或其他是背景
+            // 判定 >= 128 确保即使是灰度像素也能被识别为“有像素”
+            return c.R <= 128 || c.G <= 128 || c.B <= 128;
+        }
 
         private void ApplyBit(byte[] data, int byteIdx, int bitOffset)
         {

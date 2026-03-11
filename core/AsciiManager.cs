@@ -149,7 +149,7 @@ namespace FC.core
                         byte[] data = br.ReadBytes(bpc);
                         AsciiSet[i].Glyph?.Dispose();
                         // 关键：Convert1BppToBitmap 内部已经包含了 XOR i 和位解析逻辑
-                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, i);
+                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, false, 0);
                         AsciiSet[i].IsManual = true;
                     }
                 }
@@ -187,7 +187,7 @@ namespace FC.core
                     {
                         AsciiSet[ascii].Glyph?.Dispose();
                         // 使用解析出的尺寸创建位图
-                        AsciiSet[ascii].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, ascii);
+                        AsciiSet[ascii].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, true, ascii);
                         AsciiSet[ascii].Width = charW;
                         AsciiSet[ascii].IsManual = true;
                     }
@@ -206,19 +206,27 @@ namespace FC.core
                 {
                     int startX = (i % cols) * cellW;
                     int startY = (i / cols) * cellH;
-                    if (startY + cellH > src.Height || startX + cellW > src.Width) break;
+                    if (startY + cellH > src.Height) break;
 
-                    // 修复：不要直接 Clone，而是创建新位图并绘制，以强制转为非索引格式
                     Bitmap target = new Bitmap(cellW, cellH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                    using (Graphics g = Graphics.FromImage(target))
+
+                    for (int y = 0; y < cellH; y++)
                     {
-                        g.DrawImage(src, new Rectangle(0, 0, cellW, cellH),
-                                   new Rectangle(startX, startY, cellW, cellH), GraphicsUnit.Pixel);
+                        for (int x = 0; x < cellW; x++)
+                        {
+                            // 获取 BMP 原始像素
+                            Color c = src.GetPixel(startX + x, startY + y);
+
+                            // 逻辑翻转：如果原始是黑色（或暗色），设为 White（有字）
+                            // 如果原始是白色，设为 Black（背景）
+                            bool isText = c.R < 128;
+                            target.SetPixel(x, y, isText ? Color.White : Color.Black);
+                        }
                     }
 
                     AsciiSet[i].Glyph?.Dispose();
                     AsciiSet[i].Glyph = target;
-                    AsciiSet[i].Width = CalculateWidth(target);
+                    AsciiSet[i].Width = CalculateWidth(target); // 自动测量
                     AsciiSet[i].IsManual = true;
                 }
             }
@@ -227,17 +235,43 @@ namespace FC.core
         // --- 6. 导出逻辑 ---
         public void SaveToBin(string path, int canvasW, int canvasH, FontRender renderer)
         {
-            int bpc = canvasH * ((canvasW + 7) / 8);
+            // 每行字节数必须向上取整
+            int rowStride = (canvasW + 7) / 8;
+            int bpc = canvasH * rowStride;
+
             using (BinaryWriter bw = new BinaryWriter(File.Open(path, FileMode.Create)))
             {
                 bw.Write(new char[] { 'F', 'O', 'N', 'T' });
-                bw.Write((byte)canvasH); bw.Write((byte)canvasW); bw.Write((ushort)bpc);
+                bw.Write((byte)canvasH);
+                bw.Write((byte)canvasW);
+                bw.Write((ushort)bpc);
                 bw.Write(new byte[8]);
+
                 for (int i = 0; i < 256; i++) bw.Write((byte)AsciiSet[i].Width);
+
                 for (int i = 0; i < 256; i++)
                 {
-                    byte[] data = renderer.ConvertTo1Bpp(AsciiSet[i].Glyph);
-                    foreach (byte b in data) bw.Write((byte)(b ^ i)); // XOR i 加密
+                    Bitmap currentBmp = AsciiSet[i].Glyph;
+
+                    // 如果当前位图尺寸与要求的导出尺寸不符，强制调整（或跳过）
+                    if (currentBmp.Width != canvasW || currentBmp.Height != canvasH)
+                    {
+                        // 创建一个符合导出尺寸的临时副本，避免 GetPixel 越界
+                        Bitmap tempBmp = new Bitmap(canvasW, canvasH);
+                        using (Graphics g = Graphics.FromImage(tempBmp))
+                        {
+                            g.Clear(Color.Black);
+                            g.DrawImage(currentBmp, 0, 0);
+                        }
+                        byte[] data = renderer.ConvertTo1Bpp(tempBmp);
+                        foreach (byte b in data) bw.Write((byte)~b);
+                        tempBmp.Dispose();
+                    }
+                    else
+                    {
+                        byte[] data = renderer.ConvertTo1Bpp(currentBmp);
+                        foreach (byte b in data) bw.Write((byte)~b);
+                    }
                 }
             }
         }
@@ -245,14 +279,32 @@ namespace FC.core
         // --- 辅助工具 ---
         public int CalculateWidth(Bitmap bmp)
         {
-            for (int x = bmp.Width - 1; x >= 0; x--)
-                for (int y = 0; y < bmp.Height; y++)
-                    if (bmp.GetPixel(x, y).R > 20) return x + 1;
-            return bmp.Width / 2;
+            if (bmp == null) return 8;
+
+            // 获取位图当前的真实物理尺寸，严禁使用任何外部变量
+            int realW = bmp.Width;
+            int realH = bmp.Height;
+
+            // 从右往左扫描
+            for (int x = realW - 1; x >= 0; x--)
+            {
+                for (int y = 0; y < realH; y++)
+                {
+                    // 增加一层极致的保险检查
+                    if (x >= 0 && x < realW && y >= 0 && y < realH)
+                    {
+                        Color c = bmp.GetPixel(x, y);
+                        // 只要有像素（R通道判定），就返回当前宽度
+                        if (c.R > 20) return x + 1;
+                    }
+                }
+            }
+            // 如果是全黑，默认返回一半宽度
+            return realW / 2;
         }
 
         // 修正后的位转换函数：保持纯净，只做一次解密和一次位判定
-        private Bitmap Convert1BppToBitmap(byte[] data, int w, int h, int xorKey)
+        private Bitmap Convert1BppToBitmap(byte[] data, int w, int h, bool useXor, int xorKey)
         {
             // 强制使用 32bpp 避免 SetPixel 崩溃
             Bitmap bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
@@ -265,8 +317,12 @@ namespace FC.core
                     int byteIdx = y * stride + (x / 8);
                     if (byteIdx < data.Length)
                     {
+                        byte b = (byte)data[byteIdx];
                         // 1. 仅在此处执行一次 XOR 解密
-                        byte b = (byte)(data[byteIdx] ^ xorKey);
+                        if (useXor)
+                        {
+                            b = (byte)(b ^ xorKey);
+                        }
 
                         // 2. 根据大端序提取位：第0列对应 0x80, 第1列对应 0x40...
                         // 使用 (0x80 >> (x % 8)) 是最直观的 MSB 提取方式

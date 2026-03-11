@@ -130,24 +130,26 @@ namespace FC.ui
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
             btnBatchRender = UiFactory.CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
-            btnImportBin = UiFactory.CreateStyledButton("导入 BIN", Color.FromArgb(50, 50, 50), 32);
-            btnImportBmp = UiFactory.CreateStyledButton("导入 BMP", Color.FromArgb(50, 50, 50), 32);
-            btnImportFont = UiFactory.CreateStyledButton("导入 FONT", Color.FromArgb(50, 50, 50), 32);
-            btnSaveBin = UiFactory.CreateStyledButton("🚀 导出加密 .bin", UiFactory.AccentBlue, 42);
+            btnImportBin = UiFactory.CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
+            btnImportBmp = UiFactory.CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
+            btnImportFont = UiFactory.CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
+            btnSaveBin = UiFactory.CreateStyledButton("🚀导出.bin", UiFactory.AccentBlue, 42);
 
             // 第一行：批量渲染
             btnGrid.Controls.Add(btnBatchRender, 0, 0);
-            btnGrid.SetColumnSpan(btnBatchRender, 2);
+            btnGrid.SetColumnSpan(btnBatchRender, 3);
             // 第二行：导入功能 (左 Bin, 右 Bmp/Font 组合)
             btnGrid.Controls.Add(btnImportBin, 0, 1);
+            btnGrid.Controls.Add(btnImportBmp, 1, 0);
+            btnGrid.Controls.Add(btnImportFont, 2, 0);
 
-            // 嵌套一个小网格把 Bmp 和 Font 放在右边一列
-            TableLayoutPanel subImportGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
-            subImportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            subImportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            subImportGrid.Controls.Add(btnImportBmp, 0, 0);
-            subImportGrid.Controls.Add(btnImportFont, 1, 0);
-            btnGrid.Controls.Add(subImportGrid, 1, 1);
+            //// 嵌套一个小网格把 Bmp 和 Font 放在右边一列
+            //TableLayoutPanel subImportGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            //subImportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            //subImportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            //subImportGrid.Controls.Add(btnImportBmp, 0, 0);
+            //subImportGrid.Controls.Add(btnImportFont, 1, 0);
+            //btnGrid.Controls.Add(subImportGrid, 1, 1);
 
             // 第三行：导出
             btnGrid.Controls.Add(btnSaveBin, 0, 2);
@@ -165,7 +167,7 @@ namespace FC.ui
         {
             // --- 字体与矢量预览 ---
             btnLoadTTF.Click += (s, e) => {
-                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.otf" })
+                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.ttc;*.otf" })
                     if (ofd.ShowDialog() == DialogResult.OK) { txtFontPath.Text = ofd.FileName; _lastTtfPath = ofd.FileName; UpdateVectorPreview(); }
             };
 
