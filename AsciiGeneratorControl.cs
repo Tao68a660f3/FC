@@ -19,7 +19,7 @@ namespace FC.ui
         private NumericUpDown numShiftX, numShiftY, numAsciiIdx;
         private TextBox txtAsciiChar, txtFontPath;
         private CheckBox chkLocked;
-        private Button btnLoadTTF, btnApplyVector, btnApplyShift, btnBatchRender, btnSaveBin;
+        private Button btnLoadTTF, btnApplyVector, btnApplyShift, btnBatchRender, btnSaveBin, btnUnlockAll;
         private Button btnImportBin, btnImportBmp, btnImportFont;
         private PixelEditorControl pixelEditor;
 
@@ -117,46 +117,92 @@ namespace FC.ui
             // --- 4. 导航与执行区 (2x3 按钮矩阵布局) ---
             Panel runPanel = new Panel { Dock = DockStyle.Fill };
 
-            // 导航行
-            Panel navRow = new Panel { Dock = DockStyle.Top, Height = 40 };
-            numAsciiIdx = new NumericUpDown { Maximum = 255, Value = 65, Width = 55, Left = 5, Top = 8, BackColor = UiFactory.ControlBg, ForeColor = Color.Lime };
-            txtAsciiChar = new TextBox { MaxLength = 1, Width = 35, Left = 65, Top = 8, BackColor = UiFactory.ControlBg, ForeColor = Color.Orange, TextAlign = HorizontalAlignment.Center };
-            chkLocked = new CheckBox { Text = "锁定字符", ForeColor = Color.White, Left = 110, Top = 10, AutoSize = true };
-            navRow.Controls.AddRange(new Control[] { numAsciiIdx, txtAsciiChar, chkLocked });
+            // --- 导航行容器 (1行3列的 Grid) ---
+            TableLayoutPanel navGrid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 45,
+                ColumnCount = 3,
+                RowCount = 1,
+                BackColor = Color.FromArgb(45, 45, 48), // 区分背景深灰色
+                Padding = new Padding(5)
+            };
+            // 设置三列比例：Index(30%), Char(20%), Checkbox(50%)
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            // 按钮网格 (导入三剑客并列)
-            TableLayoutPanel btnGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3 };
-            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            // 1. ASCII 索引
+            numAsciiIdx = new NumericUpDown
+            {
+                Maximum = 255,
+                Value = 65,
+                Dock = DockStyle.Fill,
+                BackColor = UiFactory.ControlBg,
+                ForeColor = Color.Lime,
+                Font = new Font("Consolas", 11F, FontStyle.Bold),
+                TextAlign = HorizontalAlignment.Center
+            };
 
+            // 2. 对应字符
+            txtAsciiChar = new TextBox
+            {
+                MaxLength = 1,
+                Dock = DockStyle.Fill,
+                BackColor = UiFactory.ControlBg,
+                ForeColor = Color.Orange,
+                TextAlign = HorizontalAlignment.Center,
+                Font = new Font("微软雅黑", 11F, FontStyle.Bold)
+            };
+
+            // 3. 锁定开关
+            chkLocked = new CheckBox
+            {
+                Text = "锁定字符",
+                ForeColor = Color.White,
+                Dock = DockStyle.Fill,
+                CheckAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(10, 0, 0, 0)
+            };
+
+            // 将控件装入 Grid
+            navGrid.Controls.Add(numAsciiIdx, 0, 0);
+            navGrid.Controls.Add(txtAsciiChar, 1, 0);
+            navGrid.Controls.Add(chkLocked, 2, 0);
+
+            // 重新整理 3列4行 布局 (为了对齐导入三剑客和解锁)
             btnBatchRender = UiFactory.CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
             btnImportBin = UiFactory.CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
             btnImportBmp = UiFactory.CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
             btnImportFont = UiFactory.CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
             btnSaveBin = UiFactory.CreateStyledButton("🚀导出.bin", UiFactory.AccentBlue, 42);
+            btnUnlockAll = UiFactory.CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), 32);
 
-            // 第一行：批量渲染
-            btnGrid.Controls.Add(btnBatchRender, 0, 0);
+            TableLayoutPanel btnGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 4 };
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34F));
+
+            // 第一行：全部解锁 (跨3列)
+            btnGrid.Controls.Add(btnUnlockAll, 0, 0);
+            btnGrid.SetColumnSpan(btnUnlockAll, 3);
+
+            // 第二行：批量渲染 (跨3列)
+            btnGrid.Controls.Add(btnBatchRender, 0, 1);
             btnGrid.SetColumnSpan(btnBatchRender, 3);
-            // 第二行：导入功能 (左 Bin, 右 Bmp/Font 组合)
-            btnGrid.Controls.Add(btnImportBin, 0, 1);
-            btnGrid.Controls.Add(btnImportBmp, 1, 0);
-            btnGrid.Controls.Add(btnImportFont, 2, 0);
 
-            //// 嵌套一个小网格把 Bmp 和 Font 放在右边一列
-            //TableLayoutPanel subImportGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
-            //subImportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            //subImportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            //subImportGrid.Controls.Add(btnImportBmp, 0, 0);
-            //subImportGrid.Controls.Add(btnImportFont, 1, 0);
-            //btnGrid.Controls.Add(subImportGrid, 1, 1);
 
-            // 第三行：导出
-            btnGrid.Controls.Add(btnSaveBin, 0, 2);
-            btnGrid.SetColumnSpan(btnSaveBin, 2);
+            // 第三行：导入三剑客 (并列)
+            btnGrid.Controls.Add(btnImportBin, 0, 2);
+            btnGrid.Controls.Add(btnImportBmp, 1, 2);
+            btnGrid.Controls.Add(btnImportFont, 2, 2);
+
+            // 第四行：导出 (跨3列)
+            btnGrid.Controls.Add(btnSaveBin, 0, 3);
+            btnGrid.SetColumnSpan(btnSaveBin, 3);
 
             runPanel.Controls.Add(btnGrid);
-            runPanel.Controls.Add(navRow);
+            runPanel.Controls.Add(navGrid);
             leftGrid.Controls.Add(runPanel, 0, 3);
 
             pixelEditor = new PixelEditorControl { Dock = DockStyle.Fill };
@@ -166,7 +212,8 @@ namespace FC.ui
         private void BindEvents()
         {
             // --- 字体与矢量预览 ---
-            btnLoadTTF.Click += (s, e) => {
+            btnLoadTTF.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.ttc;*.otf" })
                     if (ofd.ShowDialog() == DialogResult.OK) { txtFontPath.Text = ofd.FileName; _lastTtfPath = ofd.FileName; UpdateVectorPreview(); }
             };
@@ -179,7 +226,14 @@ namespace FC.ui
             numFontScaleX.ValueChanged += vectorTrigger;
             numFontScaleY.ValueChanged += vectorTrigger;
 
-            btnApplyVector.Click += (s, e) => {
+            btnUnlockAll.Click += (s, e) =>
+            {
+                _mgr.UnlockAll(); // 调用 AsciiManager 里的方法
+                OnIdxChanged();
+            };
+
+            btnApplyVector.Click += (s, e) =>
+            {
                 if (!string.IsNullOrEmpty(_lastTtfPath))
                 {
                     _mgr.GenerateFromVector(_currentIdx, _fontRender); //
@@ -188,7 +242,8 @@ namespace FC.ui
             };
 
             // --- 导入功能绑定 ---
-            btnImportBin.Click += (s, e) => {
+            btnImportBin.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "BIN|*.bin" })
                     if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromBin(ofd.FileName, out int w, out int h))
                     {
@@ -200,7 +255,8 @@ namespace FC.ui
                     }
             };
 
-            btnImportBmp.Click += (s, e) => {
+            btnImportBmp.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Bitmap|*.bmp" })
                     if (ofd.ShowDialog() == DialogResult.OK)
                     {
@@ -209,7 +265,8 @@ namespace FC.ui
                     }
             };
 
-            btnImportFont.Click += (s, e) => {
+            btnImportFont.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "FONT|*.font;*.txt" })
                 {
                     if (ofd.ShowDialog() == DialogResult.OK)
@@ -232,7 +289,8 @@ namespace FC.ui
             };
 
             // --- 批量与导出 ---
-            btnBatchRender.Click += (s, e) => {
+            btnBatchRender.Click += (s, e) =>
+            {
                 if (!string.IsNullOrEmpty(_lastTtfPath))
                 {
                     _mgr.BatchRender(_fontRender, false); //
@@ -241,13 +299,15 @@ namespace FC.ui
                 }
             };
 
-            btnSaveBin.Click += (s, e) => {
+            btnSaveBin.Click += (s, e) =>
+            {
                 using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Binary|*.bin" })
                     if (sfd.ShowDialog() == DialogResult.OK) _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender); //
             };
 
             // --- 导航与平移 ---
-            btnApplyShift.Click += (s, e) => {
+            btnApplyShift.Click += (s, e) =>
+            {
                 _mgr.ApplyShift(_currentIdx, (int)numShiftX.Value, (int)numShiftY.Value); //
                 numShiftX.Value = 0; numShiftY.Value = 0; SyncUI(false);
             };
