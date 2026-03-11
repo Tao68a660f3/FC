@@ -338,6 +338,8 @@ namespace FC.ui
             if (string.IsNullOrEmpty(_lastTtfPath))
                 return;
             _fontRender.LoadFontFile(_lastTtfPath, (float)numFontSize.Value);
+            _fontRender.CanvasWidth = (int)numCanvasW.Value;
+            _fontRender.CanvasHeight = (int)numCanvasH.Value;
             _fontRender.OffsetX = -(int)numFontOffsetX.Value;
             _fontRender.OffsetY = -(int)numFontOffsetY.Value;
             _fontRender.ScaleX = (int)numFontScaleX.Value;
