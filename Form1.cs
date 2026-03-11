@@ -3,6 +3,7 @@ using FC.ui;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using YourProjectName.UI;
 
 namespace FC
 {
@@ -59,6 +60,13 @@ namespace FC
             // --- 帮助菜单 ---
             ToolStripMenuItem mnuHelp = new ToolStripMenuItem("帮助(&H)");
             mnuHelp.DropDownItems.Add("关于", null, (s, e) => MessageBox.Show("FontFactory Pro v1.0\n专为嵌入式开发设计的字库工具", "关于"));
+            mnuHelp.DropDownItems.Add("代码参考", null, (s, e) =>
+            {
+                using (var frm = new FrmHelp(this.Icon)) // 传入主窗体的紫色图标
+                {
+                    frm.ShowDialog(this);
+                }
+            });
 
             menuStrip.Items.Add(mnuMode);
             menuStrip.Items.Add(mnuHelp);
