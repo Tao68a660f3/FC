@@ -35,9 +35,13 @@ namespace FC.core
         public void UpdateVectorPreview(int idx, FontRender renderer)
         {
             if (idx < 0 || idx > 255) return;
-            PreviewBitmap?.Dispose();
-            // 直接调用渲染器生成“幻影”位图，不触碰本体 Glyph
-            PreviewBitmap = renderer.RenderCharToBitmap(((char)idx).ToString());
+
+            using (Bitmap raw = renderer.RenderCharToBitmap(((char)idx).ToString()))
+            {
+                PreviewBitmap?.Dispose();
+                // 预览时也进行处理，确保预览看到的颜色/宽度与生成后一致
+                PreviewBitmap = ProcessRenderedBitmap(raw, out _);
+            }
         }
 
         // --- 2. 位图平移预览接口 (反映对本体 Glyph 的物理位移效果) ---
@@ -66,10 +70,17 @@ namespace FC.core
         public void GenerateFromVector(int idx, FontRender renderer)
         {
             if (idx < 0 || idx > 255) return;
-            AsciiSet[idx].Glyph?.Dispose();
-            // 正式抓取当前的矢量预览结果作为本体
-            AsciiSet[idx].Glyph = renderer.RenderCharToBitmap(((char)idx).ToString());
-            AsciiSet[idx].IsManual = true;
+
+            using (Bitmap raw = renderer.RenderCharToBitmap(((char)idx).ToString()))
+            {
+                if (raw == null) return;
+
+                AsciiSet[idx].Glyph?.Dispose();
+                // 调用抽离逻辑
+                AsciiSet[idx].Glyph = ProcessRenderedBitmap(raw, out int w);
+                AsciiSet[idx].Width = w;
+                AsciiSet[idx].IsManual = true; // 确认生成后锁定
+            }
         }
 
         // --- 5. 内部平移算法 (私有工具) ---
@@ -102,10 +113,14 @@ namespace FC.core
             {
                 if (forceAll || !AsciiSet[i].IsManual)
                 {
-                    AsciiSet[i].Glyph?.Dispose();
-                    // 批量生成时使用当前全局偏移
-                    AsciiSet[i].Glyph = renderer.RenderCharToBitmap(((char)i).ToString());
-                    AsciiSet[i].IsManual = false;
+                    using (Bitmap raw = renderer.RenderCharToBitmap(((char)i).ToString()))
+                    {
+                        AsciiSet[i].Glyph?.Dispose();
+                        // 调用抽离逻辑：自动反转颜色并获取宽度
+                        AsciiSet[i].Glyph = ProcessRenderedBitmap(raw, out int w);
+                        AsciiSet[i].Width = w;
+                        AsciiSet[i].IsManual = false;
+                    }
                 }
             }
         }
@@ -125,6 +140,40 @@ namespace FC.core
                 AsciiSet[i].Width = w / 2;
                 AsciiSet[i].IsManual = true; // 纯手工模式起始
             }
+        }
+
+        private Bitmap ProcessRenderedBitmap(Bitmap rawBmp, out int measuredWidth)
+        {
+            if (rawBmp == null)
+            {
+                measuredWidth = 8;
+                return new Bitmap(16, 16);
+            }
+
+            // 1. 标准化格式并处理颜色反转
+            // 假设渲染器输出是白底黑字，我们要转成黑底白字（White代表点）
+            Bitmap processed = new Bitmap(rawBmp.Width, rawBmp.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            // 判定：如果(0,0)是亮的，说明是白底，需要反转
+            bool needInvert = rawBmp.GetPixel(0, 0).R > 128;
+
+            for (int y = 0; y < rawBmp.Height; y++)
+            {
+                for (int x = 0; x < rawBmp.Width; x++)
+                {
+                    Color c = rawBmp.GetPixel(x, y);
+                    // 目标：字是 White (R>128)，背景是 Black
+                    if (needInvert)
+                        processed.SetPixel(x, y, c.R < 128 ? Color.White : Color.Black);
+                    else
+                        processed.SetPixel(x, y, c.R > 128 ? Color.White : Color.Black);
+                }
+            }
+
+            // 2. 自动测量物理宽度
+            measuredWidth = CalculateWidth(processed);
+
+            return processed;
         }
 
         // --- 5. 协议导入 (BIN / FONT / BMP) ---
