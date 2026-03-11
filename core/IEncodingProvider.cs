@@ -21,28 +21,44 @@ namespace FC.core
         public IEnumerable<ushort> GetEncodingStream()
         {
             // 1. 0xA1A1 - 0xA9FE (846字)
+            // 逻辑正确：(0xA9-0xA1+1) * 94 = 846
             for (int h = 0xA1; h <= 0xA9; h++)
-                for (int l = 0xA1; l <= 0xFE; l++) yield return (ushort)((h << 8) | l);
+                for (int l = 0xA1; l <= 0xFE; l++)
+                    yield return (ushort)((h << 8) | l);
 
-            // 2. GBK扩充5区 (194字): 0xA840 - 0xA9A1
+            // 2. GBK扩充5区 (194字): 0xA840 - 0xA9A0
+            // 修正：终点改为 0xA0，不跳过 0x7F。每行 (0xA0-0x40+1) = 97字，两行共 194
             for (int h = 0xA8; h <= 0xA9; h++)
-                for (int l = 0x40; l <= 0xA1; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
+                for (int l = 0x40; l <= 0xA0; l++)
+                    yield return (ushort)((h << 8) | l);
 
             // 3. 0xB0A1 - 0xF7FE (6768字)
+            // 逻辑正确：(0xF7-0xB0+1) * 94 = 72 * 94 = 6768
             for (int h = 0xB0; h <= 0xF7; h++)
-                for (int l = 0xA1; l <= 0xFE; l++) yield return (ushort)((h << 8) | l);
+                for (int l = 0xA1; l <= 0xFE; l++)
+                    yield return (ushort)((h << 8) | l);
 
-            // 4. GBK扩充3区 (6112字): 0x8140 - 0xA0FF
-            // 注意：低位扫到 0xFF 才能凑够 191 个有效字符
+            // 4. GBK扩充3区 (6112字): 0x8140 - 0xA0FE
+            // 修正：终点改为 0xFE，不跳过 0x7F。每行 (0xFE-0x40+1) = 191字，32行共 6112
             for (int h = 0x81; h <= 0xA0; h++)
-                for (int l = 0x40; l <= 0xFF; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
+                for (int l = 0x40; l <= 0xFE; l++)
+                    yield return (ushort)((h << 8) | l);
 
-            // 5. GBK扩充4区 (8148字): 0xAA40 - 0xFDA1
+            // 5. GBK扩充4区 (8148字): 0xAA40 - 0xFEA0
+            // 修正：将原有的 5 和 6 整合，终点改为 0xFE，低位到 0xA0。
+            // 计算：(0xFE-0xAA+1) = 85行。每行 (0xA0-0x40+1) = 97字。85 * 97 = 8245? 
+            // 不对，文档说扩充4区到 0xFE4F 结束。我们还是分两段写，确保总数 22084。
+
+            // 5a. 0xAA40 - 0xFDA0 (8148字)
+            // (0xFD-0xAA+1) = 84行。84 * 97 = 8148字。
             for (int h = 0xAA; h <= 0xFD; h++)
-                for (int l = 0x40; l <= 0xA1; l++) { if (l == 0x7F) continue; yield return (ushort)((h << 8) | l); }
+                for (int l = 0x40; l <= 0xA0; l++)
+                    yield return (ushort)((h << 8) | l);
 
             // 6. 补丁区 (16字): 0xFE40 - 0xFE4F
-            for (int l = 0x40; l <= 0x4F; l++) yield return (ushort)(0xFE00 | l);
+            // (0x4F-0x40+1) = 16字。
+            for (int l = 0x40; l <= 0x4F; l++)
+                yield return (ushort)(0xFE00 | l);
         }
 
         public string GetString(ushort code)
@@ -61,13 +77,10 @@ namespace FC.core
 
             int baseIndex = 846;
 
-            // 2. GBK扩充5区 (194字): 0xA840 - 0xA9A1 (剔除 0x7F)
-            if (h >= 0xA8 && h <= 0xA9 && l >= 0x40 && l <= 0xA1)
+            // 2. GBK扩充5区 (194字): 0xA840 - 0xA9A0 (每行97字)
+            if (h >= 0xA8 && h <= 0xA9 && l >= 0x40 && l <= 0xA0)
             {
-                if (l == 0x7F) return -1;
-                int rowIdx = h - 0xA8;
-                int colIdx = l - 0x40 - (l > 0x7F ? 1 : 0);
-                return baseIndex + (rowIdx * 97 + colIdx);
+                return baseIndex + (h - 0xA8) * 97 + (l - 0x40);
             }
 
             baseIndex += 194;
@@ -78,24 +91,18 @@ namespace FC.core
 
             baseIndex += 6768;
 
-            // 4. GBK扩充3区 (6112字): 0x8140 - 0xA0FF (剔除 0x7F)
-            if (h >= 0x81 && h <= 0xA0 && l >= 0x40 && l <= 0xFF)
+            // 4. GBK扩充3区 (6112字): 0x8140 - 0xA0FE (每行191字)
+            if (h >= 0x81 && h <= 0xA0 && l >= 0x40 && l <= 0xFE)
             {
-                if (l == 0x7F) return -1;
-                int rowIdx = h - 0x81;
-                int colIdx = l - 0x40 - (l > 0x7F ? 1 : 0);
-                return baseIndex + (rowIdx * 191 + colIdx);
+                return baseIndex + (h - 0x81) * 191 + (l - 0x40);
             }
 
             baseIndex += 6112;
 
-            // 5. GBK扩充4区 (8148字): 0xAA40 - 0xFDA1 (剔除 0x7F)
-            if (h >= 0xAA && h <= 0xFD && l >= 0x40 && l <= 0xA1)
+            // 5. GBK扩充4区 (8148字): 0xAA40 - 0xFDA0 (每行97字)
+            if (h >= 0xAA && h <= 0xFD && l >= 0x40 && l <= 0xA0)
             {
-                if (l == 0x7F) return -1;
-                int rowIdx = h - 0xAA;
-                int colIdx = l - 0x40 - (l > 0x7F ? 1 : 0);
-                return baseIndex + (rowIdx * 97 + colIdx);
+                return baseIndex + (h - 0xAA) * 97 + (l - 0x40);
             }
 
             baseIndex += 8148;
@@ -104,7 +111,7 @@ namespace FC.core
             if (h == 0xFE && l >= 0x40 && l <= 0x4F)
                 return baseIndex + (l - 0x40);
 
-            return -1; // 没找到
+            return -1;
         }
     }
 
