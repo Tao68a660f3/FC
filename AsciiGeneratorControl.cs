@@ -189,6 +189,14 @@ namespace FC.ui
                 }
             };
 
+            // --- 响应式重绘修复 ---
+            pixelEditor.Resize += (s, e) =>
+            {
+                // 当父容器（Window 或 TableLayoutPanel）大小改变导致控件缩放时
+                // 强制控件重新计算内部网格并调用 OnPaint
+                pixelEditor.Invalidate();
+            };
+
             // --- 导入功能绑定 ---
             btnImportBin.Click += (s, e) => {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "BIN|*.bin" })
