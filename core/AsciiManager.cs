@@ -198,7 +198,7 @@ namespace FC.core
                         byte[] data = br.ReadBytes(bpc);
                         AsciiSet[i].Glyph?.Dispose();
                         // 关键：Convert1BppToBitmap 内部已经包含了 XOR i 和位解析逻辑
-                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, false, 0);
+                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, true, i);
                         AsciiSet[i].IsManual = true;
                     }
                 }
@@ -284,43 +284,67 @@ namespace FC.core
         // --- 6. 导出逻辑 ---
         public void SaveToBin(string path, int canvasW, int canvasH, FontRender renderer)
         {
-            // 每行字节数必须向上取整
             int rowStride = (canvasW + 7) / 8;
             int bpc = canvasH * rowStride;
 
             using (BinaryWriter bw = new BinaryWriter(File.Open(path, FileMode.Create)))
             {
+                // 1. Header (16字节) - 严格对齐 Python 的 <BBH
                 bw.Write(new char[] { 'F', 'O', 'N', 'T' });
                 bw.Write((byte)canvasH);
                 bw.Write((byte)canvasW);
-                bw.Write((ushort)bpc);
+                bw.Write((ushort)bpc); // < 代表小端序，BinaryWriter 默认就是小端
                 bw.Write(new byte[8]);
 
-                for (int i = 0; i < 256; i++) bw.Write((byte)AsciiSet[i].Width);
-
+                // 2. 宽度表 (256字节)
                 for (int i = 0; i < 256; i++)
                 {
-                    Bitmap currentBmp = AsciiSet[i].Glyph;
+                    bw.Write((byte)AsciiSet[i].Width);
+                }
 
-                    // 如果当前位图尺寸与要求的导出尺寸不符，强制调整（或跳过）
-                    if (currentBmp.Width != canvasW || currentBmp.Height != canvasH)
+                // 3. 点阵数据 (核心修复)
+                for (int i = 0; i < 256; i++)
+                {
+                    Bitmap bmp = AsciiSet[i].Glyph;
+                    // 确保尺寸一致，如果不一致则在内存绘制一个匹配的
+                    Bitmap targetBmp = bmp;
+                    bool isTemp = false;
+                    if (bmp.Width != canvasW || bmp.Height != canvasH)
                     {
-                        // 创建一个符合导出尺寸的临时副本，避免 GetPixel 越界
-                        Bitmap tempBmp = new Bitmap(canvasW, canvasH);
-                        using (Graphics g = Graphics.FromImage(tempBmp))
+                        targetBmp = new Bitmap(canvasW, canvasH);
+                        using (Graphics g = Graphics.FromImage(targetBmp))
                         {
                             g.Clear(Color.Black);
-                            g.DrawImage(currentBmp, 0, 0);
+                            g.DrawImage(bmp, 0, 0);
                         }
-                        byte[] data = renderer.ConvertTo1Bpp(tempBmp);
-                        foreach (byte b in data) bw.Write((byte)~b);
-                        tempBmp.Dispose();
+                        isTemp = true;
                     }
-                    else
+
+                    // --- 按照 Python 母本逻辑手动转码 ---
+                    byte[] charData = new byte[bpc];
+                    for (int y = 0; y < canvasH; y++)
                     {
-                        byte[] data = renderer.ConvertTo1Bpp(currentBmp);
-                        foreach (byte b in data) bw.Write((byte)~b);
+                        for (int x = 0; x < canvasW; x++)
+                        {
+                            Color c = targetBmp.GetPixel(x, y);
+                            // 如果是白色像素(有字)，则设为 1
+                            if (c.R > 128)
+                            {
+                                int bytePos = y * rowStride + (x / 8);
+                                int bitPos = 7 - (x % 8); // 关键：大端序排列 (MSB在左)
+                                charData[bytePos] |= (byte)(1 << bitPos);
+                            }
+                        }
                     }
+
+                    // 写入并执行母本要求的唯一加密：XOR i (不要取反 ~)
+                    for (int j = 0; j < charData.Length; j++)
+                    {
+                        bw.Write((byte)(charData[j] ^ i));
+                    }
+
+                    if (isTemp)
+                        targetBmp.Dispose();
                 }
             }
         }

@@ -27,10 +27,12 @@ namespace FC.ui
             this.Dock = DockStyle.Fill;
             InitResponsiveLayout();
             BindEvents();
-            SyncPreview();
+
+            // --- 核心修复：启动时强制同步 UI 状态 ---
+            numAsciiIdx.Value = 65;
+            txtAsciiChar.Text = "A";
+            OnIdxChanged();
         }
-        // 需确保类成员变量包含以下定义：
-        // private Button btnBatchRender, btnImportBin, btnImportBmp, btnImportFont, btnSaveBin;
 
         private void InitResponsiveLayout()
         {
@@ -46,7 +48,7 @@ namespace FC.ui
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65F)); // 右侧预览
             this.Controls.Add(mainTable);
 
-            // --- 左侧：响应式容器 (4行比例分配) ---
+            // --- 左侧：响应式容器 (4行) ---
             TableLayoutPanel leftGrid = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -62,7 +64,7 @@ namespace FC.ui
 
             // --- 1. 画布与协议 ---
             GroupBox gbCanvas = UiFactory.CreateModernGroupBox("画布与协议", 0);
-            gbCanvas.Dock = DockStyle.Fill;
+            gbCanvas.Dock = DockStyle.Fill; // 确保填满第1行
             TableLayoutPanel canvasGrid = UiFactory.CreateGridContainer(2, 4);
             numCanvasW = UiFactory.AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
             numCanvasH = UiFactory.AddGridControl(canvasGrid, "画布高", 16, 0, 1);
@@ -70,11 +72,10 @@ namespace FC.ui
             gbCanvas.Controls.Add(canvasGrid);
             leftGrid.Controls.Add(gbCanvas, 0, 0);
 
-            // --- 2. 矢量生成设置 (整合文件选择) ---
+            // --- 2. 矢量生成设置 ---
             GroupBox gbVector = UiFactory.CreateModernGroupBox("矢量生成设置", 0);
-            gbVector.Dock = DockStyle.Fill;
+            gbVector.Dock = DockStyle.Fill; // 确保填满第2行
 
-            // 顶部文件选择
             TableLayoutPanel filePickGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 32, ColumnCount = 2 };
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72F));
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28F));
@@ -83,8 +84,8 @@ namespace FC.ui
             filePickGrid.Controls.Add(txtFontPath, 0, 0);
             filePickGrid.Controls.Add(btnLoadTTF, 1, 0);
 
-            // 参数网格
             TableLayoutPanel vectorGrid = UiFactory.CreateGridContainer(3, 4);
+            vectorGrid.Dock = DockStyle.Fill; // 让参数网格自适应
             numFontSize = UiFactory.AddGridControl(vectorGrid, "字号", 16, 0, 0);
             numFontOffsetX = UiFactory.AddGridControl(vectorGrid, "移X", 0, 1, 0);
             numFontOffsetY = UiFactory.AddGridControl(vectorGrid, "移Y", 0, 1, 1);
@@ -94,14 +95,14 @@ namespace FC.ui
             btnApplyVector = UiFactory.CreateStyledButton("矢量像素推到底稿", Color.FromArgb(60, 120, 60), 38);
             btnApplyVector.Dock = DockStyle.Bottom;
 
-            gbVector.Controls.Add(vectorGrid);
-            gbVector.Controls.Add(filePickGrid);
-            gbVector.Controls.Add(btnApplyVector);
+            gbVector.Controls.Add(vectorGrid); // 先加 Fill
+            gbVector.Controls.Add(filePickGrid); // 再加 Top
+            gbVector.Controls.Add(btnApplyVector); // 最后加 Bottom
             leftGrid.Controls.Add(gbVector, 0, 1);
 
             // --- 3. 物理像素位移 ---
             GroupBox gbShift = UiFactory.CreateModernGroupBox("物理像素位移", 0);
-            gbShift.Dock = DockStyle.Fill;
+            gbShift.Dock = DockStyle.Fill; // 确保填满第3行
             TableLayoutPanel shiftGrid = UiFactory.CreateGridContainer(1, 4);
             numShiftX = UiFactory.AddGridControl(shiftGrid, "平移X", 0, 0, 0);
             numShiftY = UiFactory.AddGridControl(shiftGrid, "平移Y", 0, 0, 1);
@@ -111,95 +112,49 @@ namespace FC.ui
             gbShift.Controls.Add(btnApplyShift);
             leftGrid.Controls.Add(gbShift, 0, 2);
 
-            // --- 4. 导航与执行区 (2x3 按钮矩阵布局) ---
+            // --- 4. 导航与执行区 ---
             Panel runPanel = new Panel { Dock = DockStyle.Fill };
 
-            // --- 导航行容器 (1行3列的 Grid) ---
-            TableLayoutPanel navGrid = new TableLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                Height = 45,
-                ColumnCount = 3,
-                RowCount = 1,
-                BackColor = Color.FromArgb(45, 45, 48), // 区分背景深灰色
-                Padding = new Padding(5)
-            };
-            // 设置三列比例：Index(30%), Char(20%), Checkbox(50%)
+            // 导航行 (Top)
+            TableLayoutPanel navGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 45, ColumnCount = 3, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 48) };
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            // 1. ASCII 索引
-            numAsciiIdx = new NumericUpDown
-            {
-                Maximum = 255,
-                Value = 65,
-                Dock = DockStyle.Fill,
-                BackColor = UiFactory.ControlBg,
-                ForeColor = Color.Lime,
-                Font = new Font("Consolas", 11F, FontStyle.Bold),
-                TextAlign = HorizontalAlignment.Center
-            };
-
-            // 2. 对应字符
-            txtAsciiChar = new TextBox
-            {
-                MaxLength = 1,
-                Dock = DockStyle.Fill,
-                BackColor = UiFactory.ControlBg,
-                ForeColor = Color.Orange,
-                TextAlign = HorizontalAlignment.Center,
-                Font = new Font("微软雅黑", 11F, FontStyle.Bold)
-            };
-
-            // 3. 锁定开关
-            chkLocked = new CheckBox
-            {
-                Text = "锁定字符",
-                ForeColor = Color.White,
-                Dock = DockStyle.Fill,
-                CheckAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(10, 0, 0, 0)
-            };
-
-            // 将控件装入 Grid
+            numAsciiIdx = new NumericUpDown { Maximum = 255, Value = 65, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Lime, Font = new Font("Consolas", 11F, FontStyle.Bold), TextAlign = HorizontalAlignment.Center };
+            txtAsciiChar = new TextBox { MaxLength = 1, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Orange, TextAlign = HorizontalAlignment.Center, Font = new Font("微软雅黑", 11F, FontStyle.Bold) };
+            chkLocked = new CheckBox { Text = "锁定字符", ForeColor = Color.White, Dock = DockStyle.Fill, CheckAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0) };
             navGrid.Controls.Add(numAsciiIdx, 0, 0);
             navGrid.Controls.Add(txtAsciiChar, 1, 0);
             navGrid.Controls.Add(chkLocked, 2, 0);
 
-            // 重新整理 3列4行 布局 (为了对齐导入三剑客和解锁)
-            btnBatchRender = UiFactory.CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
-            btnImportBin = UiFactory.CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
-            btnImportBmp = UiFactory.CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
-            btnImportFont = UiFactory.CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
-            btnSaveBin = UiFactory.CreateStyledButton("🚀导出.bin", UiFactory.AccentBlue, 42);
-            btnUnlockAll = UiFactory.CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), 32);
-
+            // 按钮网格 (Fill)
             TableLayoutPanel btnGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 4 };
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34F));
 
-            // 第一行：全部解锁 (跨3列)
+            btnUnlockAll = UiFactory.CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), 32);
+            btnBatchRender = UiFactory.CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
+            btnImportBin = UiFactory.CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
+            btnImportBmp = UiFactory.CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
+            btnImportFont = UiFactory.CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
+            btnSaveBin = UiFactory.CreateStyledButton("🚀导出.bin", UiFactory.AccentBlue, 42);
+
             btnGrid.Controls.Add(btnUnlockAll, 0, 0);
             btnGrid.SetColumnSpan(btnUnlockAll, 3);
-
-            // 第二行：批量渲染 (跨3列)
             btnGrid.Controls.Add(btnBatchRender, 0, 1);
             btnGrid.SetColumnSpan(btnBatchRender, 3);
-
-
-            // 第三行：导入三剑客 (并列)
             btnGrid.Controls.Add(btnImportBin, 0, 2);
             btnGrid.Controls.Add(btnImportBmp, 1, 2);
             btnGrid.Controls.Add(btnImportFont, 2, 2);
-
-            // 第四行：导出 (跨3列)
             btnGrid.Controls.Add(btnSaveBin, 0, 3);
             btnGrid.SetColumnSpan(btnSaveBin, 3);
 
+            // 关键顺序：先加 Fill，再加 Top。WinForms 会让 Top 停靠在上方，Fill 占据剩余空间
             runPanel.Controls.Add(btnGrid);
             runPanel.Controls.Add(navGrid);
+
             leftGrid.Controls.Add(runPanel, 0, 3);
 
             pixelEditor = new PixelEditorControl { Dock = DockStyle.Fill };
@@ -208,9 +163,8 @@ namespace FC.ui
 
         private void BindEvents()
         {
-            // --- 字体与矢量预览 ---
-            btnLoadTTF.Click += (s, e) =>
-            {
+            // --- 字体与渲染逻辑 ---
+            btnLoadTTF.Click += (s, e) => {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.ttc;*.otf" })
                     if (ofd.ShowDialog() == DialogResult.OK)
                     {
@@ -220,7 +174,6 @@ namespace FC.ui
                     }
             };
 
-            // 数值改变即触发预览更新
             EventHandler vectorTrigger = (s, e) => UpdateVectorPreview();
             numFontSize.ValueChanged += vectorTrigger;
             numFontOffsetX.ValueChanged += vectorTrigger;
@@ -228,116 +181,129 @@ namespace FC.ui
             numFontScaleX.ValueChanged += vectorTrigger;
             numFontScaleY.ValueChanged += vectorTrigger;
 
-            btnUnlockAll.Click += (s, e) =>
-            {
-                _mgr.UnlockAll(); // 调用 AsciiManager 里的方法
-                OnIdxChanged();
-            };
-
-            btnApplyVector.Click += (s, e) =>
-            {
+            btnApplyVector.Click += (s, e) => {
                 if (!string.IsNullOrEmpty(_lastTtfPath))
                 {
-                    _mgr.GenerateFromVector(_currentIdx, _fontRender); //
-                    SyncUI(false);
+                    _mgr.GenerateFromVector(_currentIdx, _fontRender);
+                    OnIdxChanged(); // 重新加载底稿并刷新 UI
                 }
             };
 
             // --- 导入功能绑定 ---
-            btnImportBin.Click += (s, e) =>
-            {
+            btnImportBin.Click += (s, e) => {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "BIN|*.bin" })
                     if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromBin(ofd.FileName, out int w, out int h))
                     {
                         numCanvasW.Value = w;
                         numCanvasH.Value = h;
+
+                        pixelEditor.CanvasW = w;
+                        pixelEditor.CanvasH = h;
+
+                        OnIdxChanged();
+                    }
+            };
+
+            btnImportBmp.Click += (s, e) => {
+                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Bitmap|*.bmp" })
+                    if (ofd.ShowDialog() == DialogResult.OK)
+                    {
+                        _mgr.ImportFromBmp(ofd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value);
+                        OnIdxChanged();
+                    }
+            };
+
+            btnImportFont.Click += (s, e) => {
+                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "FONT|*.font;*.txt" })
+                    if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromFontText(ofd.FileName, out int w, out int h))
+                    {
+                        numCanvasW.Value = w;
+                        numCanvasH.Value = h;
+
                         pixelEditor.CanvasW = w;
                         pixelEditor.CanvasH = h;
                         OnIdxChanged();
                     }
             };
 
-            btnImportBmp.Click += (s, e) =>
-            {
-                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Bitmap|*.bmp" })
-                    if (ofd.ShowDialog() == DialogResult.OK)
-                    {
-                        _mgr.ImportFromBmp(ofd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value); //
-                        OnIdxChanged();
-                    }
-            };
-
-            btnImportFont.Click += (s, e) =>
-            {
-                using (OpenFileDialog ofd = new OpenFileDialog { Filter = "FONT|*.font;*.txt" })
-                {
-                    if (ofd.ShowDialog() == DialogResult.OK)
-                    {
-                        // 获取文件中的实际尺寸并同步到 UI
-                        if (_mgr.ImportFromFontText(ofd.FileName, out int w, out int h))
-                        {
-                            numCanvasW.Value = w;
-                            numCanvasH.Value = h;
-
-                            // 必须同步更新编辑器的画布尺寸，否则重绘会越界
-                            pixelEditor.CanvasW = w;
-                            pixelEditor.CanvasH = h;
-
-                            OnIdxChanged();
-                            MessageBox.Show($"解析成功！当前字库尺寸已切换为: {w}x{h}");
-                        }
-                    }
-                }
-            };
-
-            // --- 批量与导出 ---
-            btnBatchRender.Click += (s, e) =>
-            {
+            // --- 批量、平移、解锁 ---
+            btnBatchRender.Click += (s, e) => {
                 if (!string.IsNullOrEmpty(_lastTtfPath))
                 {
-                    _mgr.BatchRender(_fontRender, false); //
-                    SyncUI(false);
+                    _mgr.BatchRender(_fontRender, false);
+                    OnIdxChanged();
                     MessageBox.Show("批量矢量渲染完成！");
                 }
             };
 
-            btnSaveBin.Click += (s, e) =>
-            {
+            btnSaveBin.Click += (s, e) => {
                 using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Binary|*.bin" })
                     if (sfd.ShowDialog() == DialogResult.OK)
-                        _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender); //
+                        _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender);
             };
 
-            // --- 导航与平移 ---
-            btnApplyShift.Click += (s, e) =>
-            {
-                _mgr.ApplyShift(_currentIdx, -(int)numShiftX.Value, -(int)numShiftY.Value); //
+            btnApplyShift.Click += (s, e) => {
+                _mgr.ApplyShift(_currentIdx, -(int)numShiftX.Value, -(int)numShiftY.Value);
                 numShiftX.Value = 0;
                 numShiftY.Value = 0;
                 SyncUI(false);
             };
 
-            numAsciiIdx.ValueChanged += (s, e) => { _currentIdx = (int)numAsciiIdx.Value; txtAsciiChar.Text = ((char)_currentIdx).ToString(); OnIdxChanged(); };
-            txtAsciiChar.TextChanged += (s, e) => { if (txtAsciiChar.Text.Length > 0) numAsciiIdx.Value = (int)txtAsciiChar.Text[0]; };
+            btnUnlockAll.Click += (s, e) => { _mgr.UnlockAll(); OnIdxChanged(); };
 
-            // --- 画布与编辑响应 ---
+            // --- ASCII 联动 (防崩溃版本) ---
+            numAsciiIdx.ValueChanged += (s, e) => {
+                _currentIdx = (int)numAsciiIdx.Value;
+                string newChar = ((char)_currentIdx).ToString();
+                if (txtAsciiChar.Text != newChar)
+                    txtAsciiChar.Text = newChar;
+                OnIdxChanged();
+            };
+
+            txtAsciiChar.TextChanged += (s, e) => {
+                if (!string.IsNullOrEmpty(txtAsciiChar.Text))
+                {
+                    int charVal = (int)txtAsciiChar.Text[0];
+                    if (charVal >= (int)numAsciiIdx.Minimum && charVal <= (int)numAsciiIdx.Maximum)
+                    {
+                        if (numAsciiIdx.Value != charVal)
+                            numAsciiIdx.Value = charVal;
+                    }
+                }
+            };
+
+            chkLocked.CheckedChanged += (s, e) => {
+                if (chkLocked.Focused)
+                    _mgr.AsciiSet[_currentIdx].IsManual = chkLocked.Checked;
+            };
+
+            // --- 画布响应 ---
             numCanvasW.ValueChanged += (s, e) => { pixelEditor.CanvasW = (int)numCanvasW.Value; SyncUI(false); };
             numCanvasH.ValueChanged += (s, e) => { pixelEditor.CanvasH = (int)numCanvasH.Value; SyncUI(false); };
-            numActiveWidth.ValueChanged += (s, e) => { _mgr.AsciiSet[_currentIdx].Width = (int)numActiveWidth.Value; pixelEditor.ActiveWidth = (int)numActiveWidth.Value; pixelEditor.Invalidate(); };
-            pixelEditor.DataChanged += () => { _mgr.AsciiSet[_currentIdx].IsManual = true; chkLocked.Checked = true; }; //
+            numActiveWidth.ValueChanged += (s, e) => {
+                _mgr.AsciiSet[_currentIdx].Width = (int)numActiveWidth.Value;
+                pixelEditor.ActiveWidth = (int)numActiveWidth.Value;
+                pixelEditor.Invalidate();
+            };
+            pixelEditor.DataChanged += () => { _mgr.AsciiSet[_currentIdx].IsManual = true; chkLocked.Checked = true; };
         }
 
         private void OnIdxChanged()
         {
-            numActiveWidth.Value = _mgr.AsciiSet[_currentIdx].Width;
-            chkLocked.Checked = _mgr.AsciiSet[_currentIdx].IsManual;
+            var entry = _mgr.AsciiSet[_currentIdx];
+            numActiveWidth.Value = entry.Width;
+            chkLocked.Checked = entry.IsManual;
+            // 确保红线位置同步
+            pixelEditor.ActiveWidth = entry.Width;
             SyncPreview();
         }
+
         private void UpdateVectorPreview()
         {
             if (string.IsNullOrEmpty(_lastTtfPath))
                 return;
             _fontRender.LoadFontFile(_lastTtfPath, (float)numFontSize.Value);
+            // 修正变量名对齐
             _fontRender.CanvasWidth = (int)numCanvasW.Value;
             _fontRender.CanvasHeight = (int)numCanvasH.Value;
             _fontRender.OffsetX = -(int)numFontOffsetX.Value;
@@ -347,17 +313,20 @@ namespace FC.ui
             _mgr.UpdateVectorPreview(_currentIdx, _fontRender);
             SyncUI(true);
         }
+
         private void SyncPreview()
         {
             _mgr.UpdateShiftPreview(_currentIdx, 0, 0);
             SyncUI(false);
         }
+
         private void SyncUI(bool isPreview)
         {
             pixelEditor.CanvasW = (int)numCanvasW.Value;
             pixelEditor.CanvasH = (int)numCanvasH.Value;
             pixelEditor.ActiveWidth = (int)numActiveWidth.Value;
             pixelEditor.CurrentBitmap = isPreview ? _mgr.PreviewBitmap : _mgr.AsciiSet[_currentIdx].Glyph;
+            pixelEditor.Invalidate();
         }
     }
 }
