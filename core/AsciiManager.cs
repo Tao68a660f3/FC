@@ -198,7 +198,7 @@ namespace FC.core
                         byte[] data = br.ReadBytes(bpc);
                         AsciiSet[i].Glyph?.Dispose();
                         // 关键：Convert1BppToBitmap 内部已经包含了 XOR i 和位解析逻辑
-                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, true, i);
+                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, false, i);
                         AsciiSet[i].IsManual = true;
                     }
                 }
@@ -337,11 +337,11 @@ namespace FC.core
                         }
                     }
 
-                    // 写入并执行母本要求的唯一加密：XOR i (不要取反 ~)
-                    for (int j = 0; j < charData.Length; j++)
-                    {
-                        bw.Write((byte)(charData[j] ^ i));
-                    }
+                    //// 写入并执行母本要求的唯一加密：XOR i (不要取反 ~)
+                    //for (int j = 0; j < charData.Length; j++)
+                    //{
+                    //    bw.Write((byte)(charData[j] ^ i));
+                    //}
 
                     if (isTemp)
                         targetBmp.Dispose();
