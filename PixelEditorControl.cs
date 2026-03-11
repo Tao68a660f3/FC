@@ -1,115 +1,111 @@
 ﻿#nullable disable
-
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Drawing.Drawing2D;
 
 namespace FC.ui
 {
     public class PixelEditorControl : UserControl
     {
-        // 核心数据绑定
-        public byte[] CurrentData { get; set; }
+        // --- 核心属性 ---
+        private Bitmap _currentBitmap;
+        public Bitmap CurrentBitmap
+        {
+            get => _currentBitmap;
+            set { _currentBitmap = value; Invalidate(); }
+        }
+
         public int CanvasW { get; set; } = 16;
         public int CanvasH { get; set; } = 16;
-        public int ActiveWidth { get; set; } = 8; // 有效宽度（用于变宽字体）
+        public int ActiveWidth { get; set; } = 8; // 有效宽度线
+
+        // --- 交互事件 ---
+        public event Action DataChanged;
 
         public PixelEditorControl()
         {
-            this.DoubleBuffered = true; // 开启双缓冲，彻底解决闪烁
+            this.DoubleBuffered = true;
             this.BackColor = Color.FromArgb(20, 20, 20);
-            this.Cursor = Cursors.Cross;
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            if (CurrentData == null || CurrentData.Length == 0) return;
-
             Graphics g = e.Graphics;
-            // 1. 计算格子大小（保持正方形，取宽高中的最小值）
-            int cellSize = Math.Min(Width / CanvasW, Height / CanvasH);
-            if (cellSize <= 0) cellSize = 1;
+            if (_currentBitmap == null) return;
 
-            // 计算居中偏移量，让画布在控件正中间
-            int offsetX = (Width - CanvasW * cellSize) / 2;
-            int offsetY = (Height - CanvasH * cellSize) / 2;
+            // 1. 计算单个像素的缩放尺寸
+            float scale = Math.Min((float)this.Width / CanvasW, (float)this.Height / CanvasH) * 0.9f;
+            float offsetX = (this.Width - CanvasW * scale) / 2;
+            float offsetY = (this.Height - CanvasH * scale) / 2;
 
-            // 2. 绘制有效宽度遮罩（淡淡的蓝色背景）
-            using (SolidBrush maskBrush = new SolidBrush(Color.FromArgb(40, 0, 122, 204)))
+            // 2. 绘制网格背景
+            using (Pen gridPen = new Pen(Color.FromArgb(50, 50, 50), 1f))
             {
-                g.FillRectangle(maskBrush, offsetX, offsetY, ActiveWidth * cellSize, CanvasH * cellSize);
+                for (int i = 0; i <= CanvasW; i++)
+                    g.DrawLine(gridPen, offsetX + i * scale, offsetY, offsetX + i * scale, offsetY + CanvasH * scale);
+                for (int j = 0; j <= CanvasH; j++)
+                    g.DrawLine(gridPen, offsetX, offsetY + j * scale, offsetX + CanvasW * scale, offsetY + j * scale);
             }
 
-            // 3. 绘制像素点和网格
-            using (Pen gridPen = new Pen(Color.FromArgb(50, 50, 50)))
+            // 3. 核心：直接绘制位图中的像素点
+            for (int y = 0; y < _currentBitmap.Height; y++)
             {
-                int bytesPerRow = (CanvasW + 7) / 8;
-
-                for (int y = 0; y < CanvasH; y++)
+                for (int x = 0; x < _currentBitmap.Width; x++)
                 {
-                    for (int x = 0; x < CanvasW; x++)
+                    Color c = _currentBitmap.GetPixel(x, y);
+                    // 只要 R/G/B 任一通道有亮度，就认为有像素 (对应 Color.White)
+                    if (c.R > 128 || c.G > 128 || c.B > 128)
                     {
-                        int rectX = offsetX + x * cellSize;
-                        int rectY = offsetY + y * cellSize;
-
-                        // 绘制网格线
-                        g.DrawRectangle(gridPen, rectX, rectY, cellSize, cellSize);
-
-                        // 根据位数据判断是否填充（MSBFirst 逻辑）
-                        int byteIdx = y * bytesPerRow + (x / 8);
-                        if (byteIdx < CurrentData.Length)
-                        {
-                            if ((CurrentData[byteIdx] & (0x80 >> (x % 8))) != 0)
-                            {
-                                g.FillRectangle(Brushes.White, rectX + 1, rectY + 1, cellSize - 1, cellSize - 1);
-                            }
-                        }
+                        g.FillRectangle(Brushes.Lime, offsetX + x * scale + 1, offsetY + y * scale + 1, scale - 1, scale - 1);
                     }
                 }
             }
 
-            // 4. 绘制有效宽度边界线（明亮的蓝色）
-            using (Pen borderPen = new Pen(Color.DodgerBlue, 2))
+            // 4. 绘制有效宽度指示线 (红色)
+            using (Pen p = new Pen(Color.Red, 2f) { DashStyle = DashStyle.Dash })
             {
-                int borderX = offsetX + ActiveWidth * cellSize;
-                g.DrawLine(borderPen, borderX, offsetY, borderX, offsetY + CanvasH * cellSize);
+                float lineX = offsetX + ActiveWidth * scale;
+                g.DrawLine(p, lineX, offsetY, lineX, offsetY + CanvasH * scale);
             }
+
+            // 5. 绘制画布边界线 (蓝色)
+            g.DrawRectangle(Pens.RoyalBlue, offsetX, offsetY, CanvasW * scale, CanvasH * scale);
         }
 
-        protected override void OnMouseDown(MouseEventArgs e) => HandleMouse(e);
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            HandleMouse(e);
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            if (e.Button != MouseButtons.None) HandleMouse(e);
+            if (e.Button == MouseButtons.Left || e.Button == MouseButtons.Right)
+                HandleMouse(e);
         }
 
         private void HandleMouse(MouseEventArgs e)
         {
-            if (CurrentData == null) return;
+            if (_currentBitmap == null) return;
 
-            int cellSize = Math.Min(Width / CanvasW, Height / CanvasH);
-            int offsetX = (Width - CanvasW * cellSize) / 2;
-            int offsetY = (Height - CanvasH * cellSize) / 2;
+            // 逆向计算鼠标点击的像素坐标
+            float scale = Math.Min((float)this.Width / CanvasW, (float)this.Height / CanvasH) * 0.9f;
+            float offsetX = (this.Width - CanvasW * scale) / 2;
+            float offsetY = (this.Height - CanvasH * scale) / 2;
 
-            // 将鼠标坐标转换为网格坐标
-            int x = (e.X - offsetX) / cellSize;
-            int y = (e.Y - offsetY) / cellSize;
+            int px = (int)((e.X - offsetX) / scale);
+            int py = (int)((e.Y - offsetY) / scale);
 
-            if (x >= 0 && x < CanvasW && y >= 0 && y < CanvasH)
+            if (px >= 0 && px < CanvasW && py >= 0 && py < CanvasH)
             {
-                int bytesPerRow = (CanvasW + 7) / 8;
-                int byteIdx = y * bytesPerRow + (x / 8);
+                // 左键画笔（白色），右键橡皮（黑色）
+                Color newColor = (e.Button == MouseButtons.Left) ? Color.White : Color.Black;
 
-                if (byteIdx < CurrentData.Length)
+                if (_currentBitmap.GetPixel(px, py) != newColor)
                 {
-                    if (e.Button == MouseButtons.Left)
-                    {
-                        CurrentData[byteIdx] |= (byte)(0x80 >> (x % 8));
-                    }
-                    else if (e.Button == MouseButtons.Right)
-                    {
-                        CurrentData[byteIdx] &= (byte)~(0x80 >> (x % 8));
-                    }
-                    this.Invalidate(); // 触发重绘
+                    _currentBitmap.SetPixel(px, py, newColor);
+                    Invalidate();
+                    DataChanged?.Invoke(); // 触发 UI 同步信号
                 }
             }
         }

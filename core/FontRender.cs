@@ -38,7 +38,12 @@ namespace FC.core
         // 核心渲染函数：更新接口以匹配新需求
         public byte[] RenderChar(string text)
         {
-            using (Bitmap bmp = new Bitmap(CanvasWidth, CanvasHeight, PixelFormat.Format32bppArgb))
+            return ConvertTo1Bpp(RenderCharToBitmap(text));
+        }
+
+        public Bitmap RenderCharToBitmap(string text)
+        {
+            Bitmap bmp = new Bitmap(CanvasWidth, CanvasHeight, PixelFormat.Format32bppArgb);
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.Clear(Color.White);
@@ -63,7 +68,7 @@ namespace FC.core
                     g.DrawString(text, _currentFont, b, drawX, drawY);
                 }
 
-                return ConvertTo1Bpp(bmp);
+                return bmp;
             }
         }
 
