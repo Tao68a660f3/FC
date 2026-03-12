@@ -151,22 +151,15 @@ namespace FC.core
             }
 
             // 1. 标准化格式并处理颜色反转
-            // 假设渲染器输出是白底黑字，我们要转成黑底白字（White代表点）
+            // 渲染器输出是白底黑字，我们要转成黑底白字（White代表点）
             Bitmap processed = new Bitmap(rawBmp.Width, rawBmp.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            // 判定：如果(0,0)是亮的，说明是白底，需要反转
-            bool needInvert = rawBmp.GetPixel(0, 0).R > 128;
 
             for (int y = 0; y < rawBmp.Height; y++)
             {
                 for (int x = 0; x < rawBmp.Width; x++)
                 {
                     Color c = rawBmp.GetPixel(x, y);
-                    // 目标：字是 White (R>128)，背景是 Black
-                    if (needInvert)
-                        processed.SetPixel(x, y, c.R < 128 ? Color.White : Color.Black);
-                    else
-                        processed.SetPixel(x, y, c.R > 128 ? Color.White : Color.Black);
+                    processed.SetPixel(x, y, c.R < 128 ? Color.White : Color.Black);
                 }
             }
 

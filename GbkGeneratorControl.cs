@@ -6,9 +6,8 @@ using System.Windows.Forms;
 using System.IO;
 using System.Collections.Generic;
 using FC.core;
-using FC.ui;
 
-namespace FC
+namespace FC.ui
 {
     public partial class GbkGeneratorControl : UserControl
     {

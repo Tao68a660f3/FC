@@ -7,7 +7,7 @@ using System.Text;
 using System.Collections.Generic;
 using FC.core;
 
-namespace FC
+namespace FC.ui
 {
     public partial class FontInspectorControl : UserControl
     {
