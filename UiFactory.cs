@@ -21,7 +21,7 @@ namespace FC.ui
             {
                 Text = title,
                 Height = height,
-                Width = 300, // 给一个默认宽度，适合左侧 330 宽的面板
+                //Width = 300, // 给一个默认宽度，适合左侧 330 宽的面板
                 ForeColor = Color.LightSkyBlue,
                 Margin = new Padding(0, 0, 0, 10),
                 FlatStyle = FlatStyle.Flat,
@@ -94,7 +94,7 @@ namespace FC.ui
             {
                 Text = labelText,
                 Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
+                TextAlign = ContentAlignment.TopRight,
                 ForeColor = TextGray,
                 AutoSize = false
             };

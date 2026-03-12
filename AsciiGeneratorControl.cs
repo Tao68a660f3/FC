@@ -44,8 +44,11 @@ namespace FC.ui
                 RowCount = 1,
                 BackColor = Color.FromArgb(30, 30, 30)
             };
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35F)); // 左侧控制
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65F)); // 右侧预览
+
+            float scaleScaling = this.DeviceDpi / 150f;
+
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, (int)(420F * scaleScaling))); // 左侧控制
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F)); // 右侧预览
             this.Controls.Add(mainTable);
 
             // --- 左侧：响应式容器 (4行) ---

@@ -28,7 +28,12 @@ namespace FC
         private void SetupCustomControls()
         {
             TableLayoutPanel main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320f));
+
+            float scaleScaling = this.DeviceDpi / 150f;
+            int leftW = (int)(320F * scaleScaling);
+            int innerW = (int)(280F * scaleScaling);
+
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, leftW));
             main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             // --- 左侧控制面板 ---
@@ -41,13 +46,13 @@ namespace FC
             };
 
             // 1. 文件加载
-            Button btnLoad = new Button { Text = "📁 打开字库 (.bin)", Width = 280, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(60, 60, 60) };
+            Button btnLoad = new Button { Text = "📁 打开字库 (.bin)", Width = innerW, Height = 45, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(60, 60, 60) };
             btnLoad.Click += (s, e) => LoadBin();
             panel.Controls.Add(btnLoad);
 
             // 2. 规格参数
             panel.Controls.Add(CreateLabel("点阵规格 (宽 x 高):"));
-            FlowLayoutPanel sizePanel = new FlowLayoutPanel { Width = 280, Height = 35 };
+            FlowLayoutPanel sizePanel = new FlowLayoutPanel { Width = innerW, Height = 35 };
             numW = new NumericUpDown { Value = 16, Width = 80, Minimum = 1, Maximum = 256 };
             numH = new NumericUpDown { Value = 16, Width = 80, Minimum = 1, Maximum = 256 };
             sizePanel.Controls.Add(numW);
@@ -57,32 +62,32 @@ namespace FC
 
             // 3. 显式缩放控制 (用户手动输入 1-30)
             panel.Controls.Add(CreateLabel("显示缩放倍率 (2-30):", Color.Orange));
-            numZoom = new NumericUpDown { Value = 12, Minimum = 2, Maximum = 30, Width = 280 };
+            numZoom = new NumericUpDown { Value = 12, Minimum = 2, Maximum = 30, Width = innerW };
             panel.Controls.Add(numZoom);
 
             // 4. 取模设置 (完整保留)
             panel.Controls.Add(CreateLabel("扫描模式:"));
-            cmbScan = new ComboBox { Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbScan = new ComboBox { Width = innerW, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbScan.Items.AddRange(new object[] { ScanMode.Horizontal, ScanMode.Vertical });
             cmbScan.SelectedIndex = 0;
             panel.Controls.Add(cmbScan);
 
             panel.Controls.Add(CreateLabel("位序 (Bit Order):"));
-            cmbBit = new ComboBox { Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbBit = new ComboBox { Width = innerW, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbBit.Items.AddRange(new object[] { BitOrder.MSBFirst, BitOrder.LSBFirst });
             cmbBit.SelectedIndex = 0;
             panel.Controls.Add(cmbBit);
 
             panel.Controls.Add(CreateLabel("字库编码类型:"));
-            cmbEncoding = new ComboBox { Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbEncoding = new ComboBox { Width = innerW, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbEncoding.Items.AddRange(new string[] { "Custom GBK", "Standard GB2312" });
             cmbEncoding.SelectedIndex = 0;
             panel.Controls.Add(cmbEncoding);
 
             // 5. 查询输入 (改为回车或失去焦点刷新)
-            panel.Controls.Add(new Label { Text = "────────────────", ForeColor = Color.DimGray, Width = 280 });
+            panel.Controls.Add(new Label { Text = "────────────────", ForeColor = Color.DimGray, Width = innerW });
             panel.Controls.Add(CreateLabel("输入字符校验 (回车应用):", Color.Yellow));
-            txtInput = new TextBox { Width = 280, Font = new Font("微软雅黑", 14), BackColor = Color.Black, ForeColor = Color.Lime };
+            txtInput = new TextBox { Width = innerW, Font = new Font("微软雅黑", 14), BackColor = Color.Black, ForeColor = Color.Lime };
 
             // 优化响应：按回车键触发
             txtInput.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; RunInspect(); } };

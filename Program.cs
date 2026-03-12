@@ -12,6 +12,11 @@ namespace FC
             // see https://aka.ms/applicationconfiguration.
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
             ApplicationConfiguration.Initialize();
+
+            Application.SetHighDpiMode(HighDpiMode.SystemAware); // 这一行是关键
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             Application.Run(new Form1());
         }
     }
