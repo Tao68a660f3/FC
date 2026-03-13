@@ -36,7 +36,7 @@ namespace FC
             _moduleContainer = new Panel { Dock = DockStyle.Fill };
             rootLayout.Controls.Add(_moduleContainer, 0, 1);
 
-            SwitchModule(new GbkGeneratorControl());
+            SwitchModule(new AsciiGeneratorControl());
         }
 
         private void InitMenuBar()

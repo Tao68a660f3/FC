@@ -122,7 +122,7 @@ namespace FC.ui
             numFontSize = UiFactory.AddGridControl(renderGrid, "字号", 16, 0, 0);
             numCanvasW = UiFactory.AddGridControl(renderGrid, "宽", 16, 1, 0);
             numCanvasH = UiFactory.AddGridControl(renderGrid, "高", 16, 1, 1);
-            numOffsetX = UiFactory.AddGridControl(renderGrid, "移X", 0, 2, 0);
+            numOffsetX = UiFactory.AddGridControl(renderGrid, "移X", -3, 2, 0);
             numOffsetY = UiFactory.AddGridControl(renderGrid, "移Y", 0, 2, 1);
 
             // --- 第 3 行：百分比缩放 ---
@@ -131,6 +131,7 @@ namespace FC.ui
             numScaleY = UiFactory.AddGridControl(renderGrid, "比Y%", 100, 3, 1);
 
             // 设置一下范围，防止用户调成 0
+            numFontSize.Minimum = 1;
             numScaleX.Minimum = 10;
             numScaleX.Maximum = 500;
             numScaleY.Minimum = 10;
@@ -182,7 +183,7 @@ namespace FC.ui
             rightTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainTable.Controls.Add(rightTable, 1, 0);
 
-            txtPreviewInput = new TextBox { Dock = DockStyle.Fill, Text = "汉", Font = new Font("微软雅黑", 16), TextAlign = HorizontalAlignment.Center, BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.Lime };
+            txtPreviewInput = new TextBox { Dock = DockStyle.Fill, Text = "国", Font = new Font("微软雅黑", 16), TextAlign = HorizontalAlignment.Center, BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.Lime };
             rightTable.Controls.Add(txtPreviewInput, 0, 0);
             picPreview = new PictureBox { Dock = DockStyle.Fill, BackColor = Color.Black, SizeMode = PictureBoxSizeMode.Zoom };
             rightTable.Controls.Add(picPreview, 0, 1);

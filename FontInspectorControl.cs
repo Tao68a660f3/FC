@@ -53,8 +53,8 @@ namespace FC.ui
             // 2. 规格参数
             panel.Controls.Add(CreateLabel("点阵规格 (宽 x 高):"));
             FlowLayoutPanel sizePanel = new FlowLayoutPanel { Width = innerW, Height = 35 };
-            numW = new NumericUpDown { Value = 16, Width = 80, Minimum = 1, Maximum = 256 };
-            numH = new NumericUpDown { Value = 16, Width = 80, Minimum = 1, Maximum = 256 };
+            numW = new NumericUpDown { Value = 16, Width = (int)(80F * scaleScaling), Minimum = 1, Maximum = 256 };
+            numH = new NumericUpDown { Value = 16, Width = (int)(80F * scaleScaling), Minimum = 1, Maximum = 256 };
             sizePanel.Controls.Add(numW);
             sizePanel.Controls.Add(new Label { Text = "x", ForeColor = Color.White, AutoSize = true });
             sizePanel.Controls.Add(numH);
@@ -186,7 +186,7 @@ namespace FC.ui
             Bitmap bmp = new Bitmap(totalW, totalH);
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                g.Clear(Color.FromArgb(30, 30, 30));
+                g.Clear(Color.FromArgb(0, 0, 0));
                 for (int i = 0; i < glyphs.Count; i++)
                 {
                     int charOffsetX = i * (w * zoom + spacing);
@@ -199,6 +199,10 @@ namespace FC.ui
                             if (GetBitFromData(data, x, y, w, h))
                             {
                                 g.FillRectangle(Brushes.Lime, charOffsetX + x * zoom, y * zoom, zoom - 1, zoom - 1);
+                            }
+                            else
+                            {
+                                g.FillRectangle(new SolidBrush(Color.FromArgb(30, 30, 30)), charOffsetX + x * zoom, y * zoom, zoom - 1, zoom - 1);
                             }
                         }
                     }

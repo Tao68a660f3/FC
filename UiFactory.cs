@@ -71,9 +71,9 @@ namespace FC.ui
 
             NumericUpDown num = new NumericUpDown
             {
-                Value = def,
                 Minimum = -512, // 扩大范围兼容偏移和缩放
                 Maximum = 1024,
+                Value = def,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = ControlBg,
                 ForeColor = Color.White,
