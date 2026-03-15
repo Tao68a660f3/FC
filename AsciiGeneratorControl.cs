@@ -70,8 +70,11 @@ namespace FC.ui
             gbCanvas.Dock = DockStyle.Fill; // 确保填满第1行
             TableLayoutPanel canvasGrid = UiFactory.CreateGridContainer(2, 4);
             numCanvasW = UiFactory.AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
+            numCanvasW.Minimum = 1;
             numCanvasH = UiFactory.AddGridControl(canvasGrid, "画布高", 16, 0, 1);
+            numCanvasH.Minimum = 1;
             numActiveWidth = UiFactory.AddGridControl(canvasGrid, "有效宽", 8, 1, 0);
+            numActiveWidth.Minimum = 0;
             gbCanvas.Controls.Add(canvasGrid);
             leftGrid.Controls.Add(gbCanvas, 0, 0);
 
@@ -90,10 +93,15 @@ namespace FC.ui
             TableLayoutPanel vectorGrid = UiFactory.CreateGridContainer(3, 4);
             vectorGrid.Dock = DockStyle.Fill; // 让参数网格自适应
             numFontSize = UiFactory.AddGridControl(vectorGrid, "字号", 16, 0, 0);
+            numFontSize.Minimum = 1;
             numFontOffsetX = UiFactory.AddGridControl(vectorGrid, "移X", 0, 1, 0);
             numFontOffsetY = UiFactory.AddGridControl(vectorGrid, "移Y", 0, 1, 1);
             numFontScaleX = UiFactory.AddGridControl(vectorGrid, "比X%", 100, 2, 0);
+            numFontScaleX.Minimum = 10;
+            numFontScaleX.Maximum = 500;
             numFontScaleY = UiFactory.AddGridControl(vectorGrid, "比Y%", 100, 2, 1);
+            numFontScaleY.Minimum = 10;
+            numFontScaleY.Maximum = 500;
 
             btnApplyVector = UiFactory.CreateStyledButton("矢量像素推到底稿", Color.FromArgb(60, 120, 60), 38);
             btnApplyVector.Dock = DockStyle.Bottom;

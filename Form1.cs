@@ -59,7 +59,7 @@ namespace FC
 
             // --- 帮助菜单 ---
             ToolStripMenuItem mnuHelp = new ToolStripMenuItem("帮助(&H)");
-            mnuHelp.DropDownItems.Add("关于", null, (s, e) => MessageBox.Show("FontFactory Pro v1.0\n专为嵌入式开发设计的字库工具", "关于"));
+            mnuHelp.DropDownItems.Add("关于", null, (s, e) => MessageBox.Show("FontFactory Pro v1.1\n专为嵌入式开发设计的字库工具\nBy:68a660f3", "关于"));
             mnuHelp.DropDownItems.Add("代码参考", null, (s, e) =>
             {
                 using (var frm = new FrmHelp(this.Icon)) // 传入主窗体的紫色图标

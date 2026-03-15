@@ -120,8 +120,11 @@ namespace FC.ui
 
             // 第 0, 1, 2 行保持原样
             numFontSize = UiFactory.AddGridControl(renderGrid, "字号", 16, 0, 0);
+            numFontSize.Minimum = 1;
             numCanvasW = UiFactory.AddGridControl(renderGrid, "宽", 16, 1, 0);
+            numCanvasW.Minimum = 1;
             numCanvasH = UiFactory.AddGridControl(renderGrid, "高", 16, 1, 1);
+            numCanvasH.Minimum = 1;
             numOffsetX = UiFactory.AddGridControl(renderGrid, "移X", -3, 2, 0);
             numOffsetY = UiFactory.AddGridControl(renderGrid, "移Y", 0, 2, 1);
 
