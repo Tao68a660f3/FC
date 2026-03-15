@@ -82,7 +82,7 @@ namespace FC.ui
             GroupBox gbVector = UiFactory.CreateModernGroupBox("矢量生成设置", 0);
             gbVector.Dock = DockStyle.Fill; // 确保填满第2行
 
-            TableLayoutPanel filePickGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 32, ColumnCount = 2 };
+            TableLayoutPanel filePickGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 42, ColumnCount = 2 };
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72F));
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28F));
             txtFontPath = new TextBox { Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.White, ReadOnly = true };

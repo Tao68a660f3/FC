@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -78,6 +79,22 @@ namespace FC.ui
                 BackColor = ControlBg,
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // 注入滚轮修复
+            num.MouseWheel += (s, e) =>
+            {
+                HandledMouseEventArgs hme = e as HandledMouseEventArgs;
+                if (hme != null)
+                    hme.Handled = true; // 掐死系统的默认 3 步长逻辑
+
+                // 计算新值
+                decimal direction = e.Delta > 0 ? 1 : -1;
+                decimal newValue = num.Value + (direction * num.Increment);
+
+                // 边界保护
+                if (newValue >= num.Minimum && newValue <= num.Maximum)
+                    num.Value = newValue;
             };
 
             grid.Controls.Add(lbl, labelCol, row);
