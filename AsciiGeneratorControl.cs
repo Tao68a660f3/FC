@@ -289,8 +289,25 @@ namespace FC.ui
             };
 
             // --- 画布响应 ---
-            numCanvasW.ValueChanged += (s, e) => { pixelEditor.CanvasW = (int)numCanvasW.Value; SyncUI(false); };
-            numCanvasH.ValueChanged += (s, e) => { pixelEditor.CanvasH = (int)numCanvasH.Value; SyncUI(false); };
+            // --- 核心修复：画布尺寸变更监听 ---
+            EventHandler canvasSizeTrigger = (s, e) => {
+                int w = (int)numCanvasW.Value;
+                int h = (int)numCanvasH.Value;
+
+                // A. 更新编辑器控件的网格属性，确保 HandleMouse 坐标计算正确
+                pixelEditor.CanvasW = w;
+                pixelEditor.CanvasH = h;
+
+                // B. 强制内存中的 256 个 Bitmap 重置尺寸并 Crop
+                _mgr.ResizeAll(w, h);
+
+                // C. 刷新 UI 渲染
+                SyncUI(false);
+            };
+
+            numCanvasW.ValueChanged += canvasSizeTrigger;
+            numCanvasH.ValueChanged += canvasSizeTrigger;
+
             numActiveWidth.ValueChanged += (s, e) => {
                 _mgr.AsciiSet[_currentIdx].Width = (int)numActiveWidth.Value;
                 pixelEditor.ActiveWidth = (int)numActiveWidth.Value;

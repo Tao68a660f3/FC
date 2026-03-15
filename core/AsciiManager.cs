@@ -142,6 +142,34 @@ namespace FC.core
             }
         }
 
+        public void ResizeAll(int newW, int newH)
+        {
+            // 1. 更新所有字符底稿
+            for (int i = 0; i < 256; i++)
+            {
+                Bitmap oldBmp = AsciiSet[i].Glyph;
+                // 创建新尺寸的位图，显式指定 32bpp 保证 SetPixel 兼容性
+                Bitmap newBmp = new Bitmap(newW, newH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+                using (Graphics g = Graphics.FromImage(newBmp))
+                {
+                    g.Clear(Color.Black); // 默认底色
+                    if (oldBmp != null)
+                    {
+                        // 实现左上角对齐的 Crop 逻辑：旧图画到新图上，多出的裁掉，缺的补黑
+                        g.DrawImage(oldBmp, 0, 0);
+                    }
+                }
+
+                AsciiSet[i].Glyph = newBmp;
+                oldBmp?.Dispose(); // 释放旧内存
+            }
+
+            // 2. 关键：同步更新预览图尺寸，否则 UpdateVectorPreview 会报错
+            PreviewBitmap?.Dispose();
+            PreviewBitmap = new Bitmap(newW, newH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        }
+
         private Bitmap ProcessRenderedBitmap(Bitmap rawBmp, out int measuredWidth)
         {
             if (rawBmp == null)

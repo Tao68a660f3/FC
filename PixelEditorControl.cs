@@ -96,7 +96,7 @@ namespace FC.ui
             int px = (int)((e.X - offsetX) / scale);
             int py = (int)((e.Y - offsetY) / scale);
 
-            if (px >= 0 && px < CanvasW && py >= 0 && py < CanvasH)
+            if (px >= 0 && px < _currentBitmap.Width && py >= 0 && py < _currentBitmap.Height)
             {
                 // 左键画笔（白色），右键橡皮（黑色）
                 Color newColor = (e.Button == MouseButtons.Left) ? Color.White : Color.Black;
