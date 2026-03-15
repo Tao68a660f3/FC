@@ -1,11 +1,12 @@
 ﻿#nullable disable
 
-using System;
-using System.Drawing;
-using System.Windows.Forms;
-using System.IO;
-using System.Collections.Generic;
 using FC.core;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Windows.Forms;
+using static FC.ui.UiFactory;
 
 namespace FC.ui
 {
@@ -16,7 +17,7 @@ namespace FC.ui
 
         // 成员变量声明 (修复之前的漏定义)
         private TextBox txtFontPath, txtPreviewInput;
-        private NumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY, numScaleX, numScaleY;
+        private PreciseNumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY, numScaleX, numScaleY;
         private ComboBox cmbScanMode, cmbBitOrder, cmbEncoding;
         private PictureBox picPreview;
         private Label lblStatus, lblFileSizeMsg;

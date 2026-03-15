@@ -1,11 +1,12 @@
 ﻿#nullable disable
+using FC.core;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
-using System.Windows.Forms;
 using System.IO;
 using System.Text;
-using System.Collections.Generic;
-using FC.core;
+using System.Windows.Forms;
+using static FC.ui.UiFactory;
 
 namespace FC.ui
 {
@@ -15,7 +16,7 @@ namespace FC.ui
         private PictureBox picInspect;
         private TextBox txtInput, txtCode;
         private Label lblOffsetInfo;
-        private NumericUpDown numW, numH, numZoom;
+        private PreciseNumericUpDown numW, numH, numZoom;
         private ComboBox cmbScan, cmbBit, cmbEncoding;
 
         public FontInspectorControl()
@@ -53,8 +54,8 @@ namespace FC.ui
             // 2. 规格参数
             panel.Controls.Add(CreateLabel("点阵规格 (宽 x 高):"));
             FlowLayoutPanel sizePanel = new FlowLayoutPanel { Width = innerW, Height = 35 };
-            numW = new NumericUpDown { Value = 16, Width = (int)(80F * scaleScaling), Minimum = 1, Maximum = 256 };
-            numH = new NumericUpDown { Value = 16, Width = (int)(80F * scaleScaling), Minimum = 1, Maximum = 256 };
+            numW = new PreciseNumericUpDown { Value = 16, Width = (int)(80F * scaleScaling), Minimum = 1, Maximum = 256 };
+            numH = new PreciseNumericUpDown { Value = 16, Width = (int)(80F * scaleScaling), Minimum = 1, Maximum = 256 };
             sizePanel.Controls.Add(numW);
             sizePanel.Controls.Add(new Label { Text = "x", ForeColor = Color.White, AutoSize = true });
             sizePanel.Controls.Add(numH);
@@ -62,7 +63,7 @@ namespace FC.ui
 
             // 3. 显式缩放控制 (用户手动输入 1-30)
             panel.Controls.Add(CreateLabel("显示缩放倍率 (2-30):", Color.Orange));
-            numZoom = new NumericUpDown { Value = 12, Minimum = 2, Maximum = 30, Width = innerW };
+            numZoom = new PreciseNumericUpDown { Value = 12, Minimum = 2, Maximum = 30, Width = innerW };
             panel.Controls.Add(numZoom);
 
             // 4. 取模设置 (完整保留)

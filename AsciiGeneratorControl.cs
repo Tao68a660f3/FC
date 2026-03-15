@@ -1,5 +1,6 @@
 ﻿#nullable disable
 using FC.core;
+using static FC.ui.UiFactory;
 
 namespace FC.ui
 {
@@ -11,9 +12,9 @@ namespace FC.ui
         private string _lastTtfPath = "";
 
         // 控件成员变量
-        private NumericUpDown numCanvasW, numCanvasH, numActiveWidth;
-        private NumericUpDown numFontSize, numFontScaleX, numFontScaleY, numFontOffsetX, numFontOffsetY;
-        private NumericUpDown numShiftX, numShiftY, numAsciiIdx;
+        private PreciseNumericUpDown numCanvasW, numCanvasH, numActiveWidth;
+        private PreciseNumericUpDown numFontSize, numFontScaleX, numFontScaleY, numFontOffsetX, numFontOffsetY;
+        private PreciseNumericUpDown numShiftX, numShiftY, numAsciiIdx;
         private TextBox txtAsciiChar, txtFontPath;
         private CheckBox chkLocked;
         private Button btnLoadTTF, btnApplyVector, btnApplyShift, btnBatchRender, btnSaveBin, btnUnlockAll;
@@ -132,7 +133,7 @@ namespace FC.ui
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            numAsciiIdx = new NumericUpDown { Maximum = 255, Value = 65, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Lime, Font = new Font("Consolas", 11F, FontStyle.Bold), TextAlign = HorizontalAlignment.Center };
+            numAsciiIdx = new PreciseNumericUpDown { Maximum = 255, Value = 65, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Lime, Font = new Font("Consolas", 11F, FontStyle.Bold), TextAlign = HorizontalAlignment.Center };
             txtAsciiChar = new TextBox { MaxLength = 1, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Orange, TextAlign = HorizontalAlignment.Center, Font = new Font("微软雅黑", 11F, FontStyle.Bold) };
             chkLocked = new CheckBox { Text = "锁定字符", ForeColor = Color.White, Dock = DockStyle.Fill, CheckAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0) };
             navGrid.Controls.Add(numAsciiIdx, 0, 0);

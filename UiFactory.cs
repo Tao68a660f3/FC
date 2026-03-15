@@ -13,6 +13,33 @@ namespace FC.ui
         public static readonly Color TextGray = Color.FromArgb(180, 180, 180);
         public static readonly Color AccentBlue = Color.FromArgb(0, 122, 204);
 
+        public class PreciseNumericUpDown : NumericUpDown
+        {
+            public PreciseNumericUpDown()
+            {
+                // 默认让文本居中，更符合工具类 UI 的审美
+                this.TextAlign = HorizontalAlignment.Center;
+            }
+
+            protected override void OnMouseWheel(MouseEventArgs e)
+            {
+                // 1. 强制将事件标记为已处理，彻底掐死 WinForms 默认的“一次滚3行”逻辑
+                HandledMouseEventArgs hme = e as HandledMouseEventArgs;
+                if (hme != null)
+                    hme.Handled = true;
+
+                // 2. 根据 Delta 方向手动计算数值
+                // e.Delta > 0 为向上滚动
+                decimal newValue = this.Value + (e.Delta > 0 ? this.Increment : -this.Increment);
+
+                // 3. 边界检查，确保不会因越界抛出异常
+                if (newValue >= this.Minimum && newValue <= this.Maximum)
+                {
+                    this.Value = newValue;
+                }
+            }
+        }
+
         /// <summary>
         /// 创建统一风格的 GroupBox
         /// </summary>
@@ -53,9 +80,9 @@ namespace FC.ui
         }
 
         /// <summary>
-        /// 完整抽离 AddGridControl：处理 Label + NumericUpDown
+        /// 完整抽离 AddGridControl：处理 Label + PreciseNumericUpDown
         /// </summary>
-        public static NumericUpDown AddGridControl(TableLayoutPanel grid, string labelText, int def, int row, int colGroup)
+        public static PreciseNumericUpDown AddGridControl(TableLayoutPanel grid, string labelText, int def, int row, int colGroup)
         {
             // 计算列位置：colGroup 0 对应 0,1 列；colGroup 1 对应 2,3 列
             int labelCol = colGroup * 2;
@@ -70,7 +97,7 @@ namespace FC.ui
                 AutoSize = false
             };
 
-            NumericUpDown num = new NumericUpDown
+            PreciseNumericUpDown num = new PreciseNumericUpDown
             {
                 Minimum = -512, // 扩大范围兼容偏移和缩放
                 Maximum = 1024,
@@ -79,22 +106,6 @@ namespace FC.ui
                 BackColor = ControlBg,
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
-            };
-
-            // 注入滚轮修复
-            num.MouseWheel += (s, e) =>
-            {
-                HandledMouseEventArgs hme = e as HandledMouseEventArgs;
-                if (hme != null)
-                    hme.Handled = true; // 掐死系统的默认 3 步长逻辑
-
-                // 计算新值
-                decimal direction = e.Delta > 0 ? 1 : -1;
-                decimal newValue = num.Value + (direction * num.Increment);
-
-                // 边界保护
-                if (newValue >= num.Minimum && newValue <= num.Maximum)
-                    num.Value = newValue;
             };
 
             grid.Controls.Add(lbl, labelCol, row);
