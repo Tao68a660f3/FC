@@ -1,8 +1,8 @@
 ## 🚀 快速开始
 
-![](/picture/1.png)
-![](/picture/2.png)
-![](/picture/3.png)
+![](./Assets/Screenshots/1.png)
+![](./Assets/Screenshots/2.png)
+![](./Assets/Screenshots/3.png)
 
 ### 1. 字体选择 (开发者警告 ⚠️)
 

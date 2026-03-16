@@ -1,14 +1,15 @@
 ﻿#nullable disable
-using FC.core;
+using FC;
+using FC.Core;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
-using static FC.ui.UiFactory;
+using static FC.UI.UiFactory;
 
-namespace FC.ui
+namespace FC.UI.Controls
 {
     public partial class FontInspectorControl : UserControl
     {
@@ -21,8 +22,8 @@ namespace FC.ui
 
         public FontInspectorControl()
         {
-            this.Dock = DockStyle.Fill;
-            this.BackColor = Color.FromArgb(30, 30, 30);
+            Dock = DockStyle.Fill;
+            BackColor = Color.FromArgb(30, 30, 30);
             SetupCustomControls();
         }
 
@@ -30,7 +31,7 @@ namespace FC.ui
         {
             TableLayoutPanel main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
 
-            float scaleScaling = this.DeviceDpi / 150f;
+            float scaleScaling = DeviceDpi / 150f;
             int leftW = (int)(320F * scaleScaling);
             int innerW = (int)(280F * scaleScaling);
 
@@ -115,7 +116,7 @@ namespace FC.ui
             rightContainer.Controls.Add(txtCode, 0, 1);
 
             main.Controls.Add(rightContainer, 1, 0);
-            this.Controls.Add(main);
+            Controls.Add(main);
 
             // 所有编辑框应用逻辑
             foreach (var n in new[] { numW, numH, numZoom })
@@ -147,7 +148,7 @@ namespace FC.ui
             int h = (int)numH.Value;
             int zoom = (int)numZoom.Value;
 
-            IEncodingProvider provider = (cmbEncoding.SelectedIndex == 0) ? (IEncodingProvider)new GbkCustomProvider() : (IEncodingProvider)new Gb2312Provider();
+            IEncodingProvider provider = cmbEncoding.SelectedIndex == 0 ? new GbkCustomProvider() : new Gb2312Provider();
 
             List<byte[]> glyphs = new List<byte[]>();
             StringBuilder sbCode = new StringBuilder();
@@ -156,7 +157,7 @@ namespace FC.ui
             foreach (char c in txtInput.Text)
             {
                 byte[] bytes = Encoding.GetEncoding("GBK").GetBytes(c.ToString());
-                ushort code = (bytes.Length >= 2) ? (ushort)((bytes[0] << 8) | bytes[1]) : (ushort)bytes[0];
+                ushort code = bytes.Length >= 2 ? (ushort)(bytes[0] << 8 | bytes[1]) : bytes[0];
 
                 int index = provider.GetIndexByCode(code);
                 long offset = (long)index * bytesPerChar;
@@ -219,9 +220,9 @@ namespace FC.ui
             int w = (int)numW.Value;
             int h = (int)numH.Value;
             if ((ScanMode)cmbScan.SelectedItem == ScanMode.Horizontal)
-                return ((w + 7) / 8) * h;
+                return (w + 7) / 8 * h;
             else
-                return ((h + 7) / 8) * w;
+                return (h + 7) / 8 * w;
         }
 
         private bool GetBitFromData(byte[] data, int x, int y, int w, int h)
@@ -232,16 +233,16 @@ namespace FC.ui
             if (mode == ScanMode.Horizontal)
             {
                 int bpr = (w + 7) / 8;
-                int byteIdx = y * bpr + (x / 8);
+                int byteIdx = y * bpr + x / 8;
                 int bit = x % 8;
-                return order == BitOrder.MSBFirst ? (data[byteIdx] & (0x80 >> bit)) != 0 : (data[byteIdx] & (0x01 << bit)) != 0;
+                return order == BitOrder.MSBFirst ? (data[byteIdx] & 0x80 >> bit) != 0 : (data[byteIdx] & 0x01 << bit) != 0;
             }
             else
             {
                 int bpc = (h + 7) / 8;
-                int byteIdx = x * bpc + (y / 8);
+                int byteIdx = x * bpc + y / 8;
                 int bit = y % 8;
-                return order == BitOrder.MSBFirst ? (data[byteIdx] & (0x80 >> bit)) != 0 : (data[byteIdx] & (0x01 << bit)) != 0;
+                return order == BitOrder.MSBFirst ? (data[byteIdx] & 0x80 >> bit) != 0 : (data[byteIdx] & 0x01 << bit) != 0;
             }
         }
     }

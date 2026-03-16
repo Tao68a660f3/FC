@@ -3,7 +3,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace FC.ui
+namespace FC.UI
 {
     public static class UiFactory
     {

@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 
-namespace FC.ui
+namespace FC.UI.Controls
 {
     public class PixelEditorControl : UserControl
     {
@@ -25,8 +25,8 @@ namespace FC.ui
 
         public PixelEditorControl()
         {
-            this.DoubleBuffered = true;
-            this.BackColor = Color.FromArgb(20, 20, 20);
+            DoubleBuffered = true;
+            BackColor = Color.FromArgb(20, 20, 20);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -35,9 +35,9 @@ namespace FC.ui
             if (_currentBitmap == null) return;
 
             // 1. 计算单个像素的缩放尺寸
-            float scale = Math.Min((float)this.Width / CanvasW, (float)this.Height / CanvasH) * 0.9f;
-            float offsetX = (this.Width - CanvasW * scale) / 2;
-            float offsetY = (this.Height - CanvasH * scale) / 2;
+            float scale = Math.Min((float)Width / CanvasW, (float)Height / CanvasH) * 0.9f;
+            float offsetX = (Width - CanvasW * scale) / 2;
+            float offsetY = (Height - CanvasH * scale) / 2;
 
             // 2. 绘制网格背景
             using (Pen gridPen = new Pen(Color.FromArgb(50, 50, 50), 1f))
@@ -89,9 +89,9 @@ namespace FC.ui
             if (_currentBitmap == null) return;
 
             // 逆向计算鼠标点击的像素坐标
-            float scale = Math.Min((float)this.Width / CanvasW, (float)this.Height / CanvasH) * 0.9f;
-            float offsetX = (this.Width - CanvasW * scale) / 2;
-            float offsetY = (this.Height - CanvasH * scale) / 2;
+            float scale = Math.Min((float)Width / CanvasW, (float)Height / CanvasH) * 0.9f;
+            float offsetX = (Width - CanvasW * scale) / 2;
+            float offsetY = (Height - CanvasH * scale) / 2;
 
             int px = (int)((e.X - offsetX) / scale);
             int py = (int)((e.Y - offsetY) / scale);
@@ -99,7 +99,7 @@ namespace FC.ui
             if (px >= 0 && px < _currentBitmap.Width && py >= 0 && py < _currentBitmap.Height)
             {
                 // 左键画笔（白色），右键橡皮（黑色）
-                Color newColor = (e.Button == MouseButtons.Left) ? Color.White : Color.Black;
+                Color newColor = e.Button == MouseButtons.Left ? Color.White : Color.Black;
 
                 if (_currentBitmap.GetPixel(px, py) != newColor)
                 {

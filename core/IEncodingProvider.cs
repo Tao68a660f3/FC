@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace FC.core
+namespace FC.Core
 {
     // 编码提供者接口：预留给未来多国语言
     public interface IEncodingProvider

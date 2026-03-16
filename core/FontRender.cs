@@ -6,7 +6,7 @@ using System.Drawing.Text;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
-namespace FC.core
+namespace FC.Core
 {
     public enum ScanMode { Horizontal, Vertical }
     public enum BitOrder { MSBFirst, LSBFirst }

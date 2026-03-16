@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Drawing.Drawing2D;
 
-namespace FC.core
+namespace FC.Core
 {
     public class AsciiCharEntry : IDisposable
     {

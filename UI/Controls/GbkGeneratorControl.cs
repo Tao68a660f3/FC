@@ -1,14 +1,15 @@
 ﻿#nullable disable
 
-using FC.core;
+using FC;
+using FC.Core;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
-using static FC.ui.UiFactory;
+using static FC.UI.UiFactory;
 
-namespace FC.ui
+namespace FC.UI.Controls
 {
     public partial class GbkGeneratorControl : UserControl
     {
@@ -25,15 +26,15 @@ namespace FC.ui
 
         public GbkGeneratorControl()
         {
-            this.Size = new Size(1000, 700);
+            Size = new Size(1000, 700);
 
-            this.BackColor = Color.FromArgb(32, 32, 32);
-            this.ForeColor = Color.White;
+            BackColor = Color.FromArgb(32, 32, 32);
+            ForeColor = Color.White;
 
             _engine = new GeneratorEngine(_renderer);
             InitResponsiveLayout();
 
-            this.Load += GbkGeneratorControl_Load;
+            Load += GbkGeneratorControl_Load;
         }
 
         private void GbkGeneratorControl_Load(object sender, EventArgs e)
@@ -56,11 +57,11 @@ namespace FC.ui
                 BackColor = Color.FromArgb(30, 30, 30)
             };
 
-            float scaleScaling = this.DeviceDpi / 150f;
+            float scaleScaling = DeviceDpi / 150f;
 
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, (int)(420F * scaleScaling))); // 左侧 35%
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F)); // 右侧 65%
-            this.Controls.Add(mainTable);
+            Controls.Add(mainTable);
 
             // --- 左侧：响应式容器 (按行比例分配) ---
             TableLayoutPanel leftGrid = new TableLayoutPanel
@@ -78,7 +79,7 @@ namespace FC.ui
             mainTable.Controls.Add(leftGrid, 0, 0);
 
             // --- 1. 字体资源 (Dock.Fill) ---
-            GroupBox gb1 = UiFactory.CreateModernGroupBox("字体资源", 0);
+            GroupBox gb1 = CreateModernGroupBox("字体资源", 0);
             gb1.Dock = DockStyle.Fill;
             TableLayoutPanel fontGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
             fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
@@ -96,7 +97,7 @@ namespace FC.ui
             leftGrid.Controls.Add(gb1, 0, 0);
 
             // --- 2. 尺寸与偏移 (工业级 4 行布局) ---
-            GroupBox gb2 = UiFactory.CreateModernGroupBox("尺寸与偏移", 0);
+            GroupBox gb2 = CreateModernGroupBox("尺寸与偏移", 0);
             gb2.Dock = DockStyle.Fill;
 
             TableLayoutPanel renderGrid = new TableLayoutPanel
@@ -120,19 +121,19 @@ namespace FC.ui
             }
 
             // 第 0, 1, 2 行保持原样
-            numFontSize = UiFactory.AddGridControl(renderGrid, "字号", 16, 0, 0);
+            numFontSize = AddGridControl(renderGrid, "字号", 16, 0, 0);
             numFontSize.Minimum = 1;
-            numCanvasW = UiFactory.AddGridControl(renderGrid, "宽", 16, 1, 0);
+            numCanvasW = AddGridControl(renderGrid, "宽", 16, 1, 0);
             numCanvasW.Minimum = 1;
-            numCanvasH = UiFactory.AddGridControl(renderGrid, "高", 16, 1, 1);
+            numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);
             numCanvasH.Minimum = 1;
-            numOffsetX = UiFactory.AddGridControl(renderGrid, "移X", -3, 2, 0);
-            numOffsetY = UiFactory.AddGridControl(renderGrid, "移Y", 0, 2, 1);
+            numOffsetX = AddGridControl(renderGrid, "移X", -3, 2, 0);
+            numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);
 
             // --- 第 3 行：百分比缩放 ---
             // 默认值 100 代表 100%
-            numScaleX = UiFactory.AddGridControl(renderGrid, "比X%", 100, 3, 0);
-            numScaleY = UiFactory.AddGridControl(renderGrid, "比Y%", 100, 3, 1);
+            numScaleX = AddGridControl(renderGrid, "比X%", 100, 3, 0);
+            numScaleY = AddGridControl(renderGrid, "比Y%", 100, 3, 1);
 
             // 设置一下范围，防止用户调成 0
             numFontSize.Minimum = 1;
@@ -147,7 +148,7 @@ namespace FC.ui
             leftGrid.Controls.Add(gb2, 0, 1);
 
             // --- 3. 输出格式 (Dock.Fill) ---
-            GroupBox gb3 = UiFactory.CreateModernGroupBox("输出格式", 0);
+            GroupBox gb3 = CreateModernGroupBox("输出格式", 0);
             gb3.Dock = DockStyle.Fill;
             TableLayoutPanel exportGrid = new TableLayoutPanel
             {
@@ -164,9 +165,9 @@ namespace FC.ui
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
 
-            cmbScanMode = UiFactory.AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
-            cmbBitOrder = UiFactory.AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
-            cmbEncoding = UiFactory.AddGridCombo(exportGrid, "编码", null, 2);
+            cmbScanMode = AddGridCombo(exportGrid, "扫描", typeof(ScanMode), 0);
+            cmbBitOrder = AddGridCombo(exportGrid, "位序", typeof(BitOrder), 1);
+            cmbEncoding = AddGridCombo(exportGrid, "编码", null, 2);
             cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22084", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
             gb3.Controls.Add(exportGrid);
@@ -174,7 +175,7 @@ namespace FC.ui
 
             // --- 4. 执行区 (下对齐) ---
             Panel runPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 10, 0, 0) };
-            btnGo = new Button { Text = "🚀 开始生成 (.bin)", Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(0, 122, 204), FlatStyle = FlatStyle.Flat, Font = new Font(this.Font, FontStyle.Bold) };
+            btnGo = new Button { Text = "🚀 开始生成 (.bin)", Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(0, 122, 204), FlatStyle = FlatStyle.Flat, Font = new Font(Font, FontStyle.Bold) };
             btnGo.Click += BtnGo_Click;
             lblStatus = new Label { Text = "准备就绪", Dock = DockStyle.Bottom, Height = 25, ForeColor = Color.Gray };
             runPanel.Controls.Add(btnGo);
@@ -207,7 +208,7 @@ namespace FC.ui
             txtPreviewInput.TextChanged += (s, e) => update();
             cmbScanMode.SelectedIndexChanged += (s, e) => update();
             cmbBitOrder.SelectedIndexChanged += (s, e) => update();
-            this.Resize += (s, e) => UpdatePreview(); // 窗口缩放时重绘预览图
+            Resize += (s, e) => UpdatePreview(); // 窗口缩放时重绘预览图
         }
 
         private void UpdatePreview()
@@ -262,25 +263,25 @@ namespace FC.ui
             if (cmbScanMode.SelectedIndex == 0)
             { // Horizontal
                 int bpr = (w + 7) / 8;
-                int byteIdx = y * bpr + (x / 8);
+                int byteIdx = y * bpr + x / 8;
                 int bit = x % 8;
-                return cmbBitOrder.SelectedIndex == 0 ? (data[byteIdx] & (0x80 >> bit)) != 0 : (data[byteIdx] & (0x01 << bit)) != 0;
+                return cmbBitOrder.SelectedIndex == 0 ? (data[byteIdx] & 0x80 >> bit) != 0 : (data[byteIdx] & 0x01 << bit) != 0;
             }
             else
             { // Vertical
                 int bpc = (h + 7) / 8;
-                int byteIdx = x * bpc + (y / 8);
+                int byteIdx = x * bpc + y / 8;
                 int bit = y % 8;
-                return cmbBitOrder.SelectedIndex == 0 ? (data[byteIdx] & (0x80 >> bit)) != 0 : (data[byteIdx] & (0x01 << bit)) != 0;
+                return cmbBitOrder.SelectedIndex == 0 ? (data[byteIdx] & 0x80 >> bit) != 0 : (data[byteIdx] & 0x01 << bit) != 0;
             }
         }
 
         private void CalculateInfo()
         {
             // 动态获取当前编码下的字符总数，不再硬编码
-            IEncodingProvider tempProvider = (cmbEncoding.SelectedIndex == 1)
-                ? (IEncodingProvider)new Gb2312Provider()
-                : (IEncodingProvider)new GbkCustomProvider();
+            IEncodingProvider tempProvider = cmbEncoding.SelectedIndex == 1
+                ? new Gb2312Provider()
+                : new GbkCustomProvider();
 
             int charCount = 0;
             foreach (var _ in tempProvider.GetEncodingStream()) charCount++;
@@ -316,9 +317,9 @@ namespace FC.ui
             }
 
             // 2. 准备 Provider 和参数
-            IEncodingProvider provider = (cmbEncoding.SelectedIndex == 1)
-                ? (IEncodingProvider)new Gb2312Provider()
-                : (IEncodingProvider)new GbkCustomProvider();
+            IEncodingProvider provider = cmbEncoding.SelectedIndex == 1
+                ? new Gb2312Provider()
+                : new GbkCustomProvider();
 
             // 3. 实例化模态进度小窗
             FrmProgress frm = new FrmProgress();

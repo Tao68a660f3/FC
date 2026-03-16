@@ -1,11 +1,11 @@
 ﻿#nullable disable
-using FC.ui;
+using FC.UI.Forms;
+using FC.UI.Controls;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using YourProjectName.UI;
 
-namespace FC
+namespace FC.UI
 {
     public partial class Form1 : Form
     {
@@ -14,8 +14,8 @@ namespace FC
 
         public Form1()
         {
-            this.Size = new Size(1200, 800);
-            this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            Size = new Size(1200, 800);
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             // 1. 建立一个全局表格布局
             TableLayoutPanel rootLayout = new TableLayoutPanel
@@ -26,11 +26,11 @@ namespace FC
             };
             rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 第一行随菜单高度
             rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // 第二行占满剩余空间
-            this.Controls.Add(rootLayout);
+            Controls.Add(rootLayout);
 
             // 2. 初始化菜单并放入第一行
             InitMenuBar();
-            rootLayout.Controls.Add(this.MainMenuStrip, 0, 0);
+            rootLayout.Controls.Add(MainMenuStrip, 0, 0);
 
             // 3. 初始化模块容器并放入第二行
             _moduleContainer = new Panel { Dock = DockStyle.Fill };
@@ -62,7 +62,7 @@ namespace FC
             mnuHelp.DropDownItems.Add("关于", null, (s, e) => MessageBox.Show("FontFactory Pro v1.2\n专为嵌入式开发设计的字库工具\nBy:68a660f3", "关于"));
             mnuHelp.DropDownItems.Add("代码参考", null, (s, e) =>
             {
-                using (var frm = new FrmHelp(this.Icon)) // 传入主窗体的紫色图标
+                using (var frm = new FrmHelp(Icon)) // 传入主窗体的紫色图标
                 {
                     frm.ShowDialog(this);
                 }
@@ -71,8 +71,8 @@ namespace FC
             menuStrip.Items.Add(mnuMode);
             menuStrip.Items.Add(mnuHelp);
 
-            this.MainMenuStrip = menuStrip;
-            this.Controls.Add(menuStrip);
+            MainMenuStrip = menuStrip;
+            Controls.Add(menuStrip);
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace FC
                 FontInspectorControl => "字库校验模式",
                 _ => "未知模式"
             };
-            this.Text = $"FontFactory Pro - {modeName}";
+            Text = $"FontFactory Pro - {modeName}";
         }
     }
 }

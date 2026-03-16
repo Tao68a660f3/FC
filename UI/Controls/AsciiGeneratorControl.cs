@@ -1,8 +1,9 @@
 ﻿#nullable disable
-using FC.core;
-using static FC.ui.UiFactory;
+using FC;
+using FC.Core;
+using static FC.UI.UiFactory;
 
-namespace FC.ui
+namespace FC.UI.Controls
 {
     public partial class AsciiGeneratorControl : UserControl
     {
@@ -23,9 +24,9 @@ namespace FC.ui
 
         public AsciiGeneratorControl()
         {
-            this.DoubleBuffered = true;
-            this.BackColor = UiFactory.BgColor;
-            this.Dock = DockStyle.Fill;
+            DoubleBuffered = true;
+            BackColor = BgColor;
+            Dock = DockStyle.Fill;
             InitResponsiveLayout();
             BindEvents();
 
@@ -46,11 +47,11 @@ namespace FC.ui
                 BackColor = Color.FromArgb(30, 30, 30)
             };
 
-            float scaleScaling = this.DeviceDpi / 150f;
+            float scaleScaling = DeviceDpi / 150f;
 
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, (int)(420F * scaleScaling))); // 左侧控制
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F)); // 右侧预览
-            this.Controls.Add(mainTable);
+            Controls.Add(mainTable);
 
             // --- 左侧：响应式容器 (4行) ---
             TableLayoutPanel leftGrid = new TableLayoutPanel
@@ -67,44 +68,44 @@ namespace FC.ui
             mainTable.Controls.Add(leftGrid, 0, 0);
 
             // --- 1. 画布与协议 ---
-            GroupBox gbCanvas = UiFactory.CreateModernGroupBox("画布与协议", 0);
+            GroupBox gbCanvas = CreateModernGroupBox("画布与协议", 0);
             gbCanvas.Dock = DockStyle.Fill; // 确保填满第1行
-            TableLayoutPanel canvasGrid = UiFactory.CreateGridContainer(2, 4);
-            numCanvasW = UiFactory.AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
+            TableLayoutPanel canvasGrid = CreateGridContainer(2, 4);
+            numCanvasW = AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
             numCanvasW.Minimum = 1;
-            numCanvasH = UiFactory.AddGridControl(canvasGrid, "画布高", 16, 0, 1);
+            numCanvasH = AddGridControl(canvasGrid, "画布高", 16, 0, 1);
             numCanvasH.Minimum = 1;
-            numActiveWidth = UiFactory.AddGridControl(canvasGrid, "有效宽", 8, 1, 0);
+            numActiveWidth = AddGridControl(canvasGrid, "有效宽", 8, 1, 0);
             numActiveWidth.Minimum = 0;
             gbCanvas.Controls.Add(canvasGrid);
             leftGrid.Controls.Add(gbCanvas, 0, 0);
 
             // --- 2. 矢量生成设置 ---
-            GroupBox gbVector = UiFactory.CreateModernGroupBox("矢量生成设置", 0);
+            GroupBox gbVector = CreateModernGroupBox("矢量生成设置", 0);
             gbVector.Dock = DockStyle.Fill; // 确保填满第2行
 
             TableLayoutPanel filePickGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 42, ColumnCount = 2 };
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72F));
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28F));
-            txtFontPath = new TextBox { Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.White, ReadOnly = true };
+            txtFontPath = new TextBox { Dock = DockStyle.Fill, BackColor = ControlBg, ForeColor = Color.White, ReadOnly = true };
             btnLoadTTF = new Button { Text = "选择字体", Dock = DockStyle.Fill, BackColor = Color.FromArgb(60, 60, 60), FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
             filePickGrid.Controls.Add(txtFontPath, 0, 0);
             filePickGrid.Controls.Add(btnLoadTTF, 1, 0);
 
-            TableLayoutPanel vectorGrid = UiFactory.CreateGridContainer(3, 4);
+            TableLayoutPanel vectorGrid = CreateGridContainer(3, 4);
             vectorGrid.Dock = DockStyle.Fill; // 让参数网格自适应
-            numFontSize = UiFactory.AddGridControl(vectorGrid, "字号", 16, 0, 0);
+            numFontSize = AddGridControl(vectorGrid, "字号", 16, 0, 0);
             numFontSize.Minimum = 1;
-            numFontOffsetX = UiFactory.AddGridControl(vectorGrid, "移X", 0, 1, 0);
-            numFontOffsetY = UiFactory.AddGridControl(vectorGrid, "移Y", 0, 1, 1);
-            numFontScaleX = UiFactory.AddGridControl(vectorGrid, "比X%", 100, 2, 0);
+            numFontOffsetX = AddGridControl(vectorGrid, "移X", 0, 1, 0);
+            numFontOffsetY = AddGridControl(vectorGrid, "移Y", 0, 1, 1);
+            numFontScaleX = AddGridControl(vectorGrid, "比X%", 100, 2, 0);
             numFontScaleX.Minimum = 10;
             numFontScaleX.Maximum = 500;
-            numFontScaleY = UiFactory.AddGridControl(vectorGrid, "比Y%", 100, 2, 1);
+            numFontScaleY = AddGridControl(vectorGrid, "比Y%", 100, 2, 1);
             numFontScaleY.Minimum = 10;
             numFontScaleY.Maximum = 500;
 
-            btnApplyVector = UiFactory.CreateStyledButton("矢量像素推到底稿", Color.FromArgb(60, 120, 60), 38);
+            btnApplyVector = CreateStyledButton("矢量像素推到底稿", Color.FromArgb(60, 120, 60), 38);
             btnApplyVector.Dock = DockStyle.Bottom;
 
             gbVector.Controls.Add(vectorGrid); // 先加 Fill
@@ -113,12 +114,12 @@ namespace FC.ui
             leftGrid.Controls.Add(gbVector, 0, 1);
 
             // --- 3. 物理像素位移 ---
-            GroupBox gbShift = UiFactory.CreateModernGroupBox("物理像素位移", 0);
+            GroupBox gbShift = CreateModernGroupBox("物理像素位移", 0);
             gbShift.Dock = DockStyle.Fill; // 确保填满第3行
-            TableLayoutPanel shiftGrid = UiFactory.CreateGridContainer(1, 4);
-            numShiftX = UiFactory.AddGridControl(shiftGrid, "平移X", 0, 0, 0);
-            numShiftY = UiFactory.AddGridControl(shiftGrid, "平移Y", 0, 0, 1);
-            btnApplyShift = UiFactory.CreateStyledButton("应用物理位移", Color.FromArgb(120, 60, 60), 32);
+            TableLayoutPanel shiftGrid = CreateGridContainer(1, 4);
+            numShiftX = AddGridControl(shiftGrid, "平移X", 0, 0, 0);
+            numShiftY = AddGridControl(shiftGrid, "平移Y", 0, 0, 1);
+            btnApplyShift = CreateStyledButton("应用物理位移", Color.FromArgb(120, 60, 60), 32);
             btnApplyShift.Dock = DockStyle.Bottom;
             gbShift.Controls.Add(shiftGrid);
             gbShift.Controls.Add(btnApplyShift);
@@ -133,8 +134,8 @@ namespace FC.ui
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            numAsciiIdx = new PreciseNumericUpDown { Maximum = 255, Value = 65, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Lime, Font = new Font("Consolas", 11F, FontStyle.Bold), TextAlign = HorizontalAlignment.Center };
-            txtAsciiChar = new TextBox { MaxLength = 1, Dock = DockStyle.Fill, BackColor = UiFactory.ControlBg, ForeColor = Color.Orange, TextAlign = HorizontalAlignment.Center, Font = new Font("微软雅黑", 11F, FontStyle.Bold) };
+            numAsciiIdx = new PreciseNumericUpDown { Maximum = 255, Value = 65, Dock = DockStyle.Fill, BackColor = ControlBg, ForeColor = Color.Lime, Font = new Font("Consolas", 11F, FontStyle.Bold), TextAlign = HorizontalAlignment.Center };
+            txtAsciiChar = new TextBox { MaxLength = 1, Dock = DockStyle.Fill, BackColor = ControlBg, ForeColor = Color.Orange, TextAlign = HorizontalAlignment.Center, Font = new Font("微软雅黑", 11F, FontStyle.Bold) };
             chkLocked = new CheckBox { Text = "锁定字符", ForeColor = Color.White, Dock = DockStyle.Fill, CheckAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0) };
             navGrid.Controls.Add(numAsciiIdx, 0, 0);
             navGrid.Controls.Add(txtAsciiChar, 1, 0);
@@ -146,12 +147,12 @@ namespace FC.ui
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34F));
 
-            btnUnlockAll = UiFactory.CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), 32);
-            btnBatchRender = UiFactory.CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
-            btnImportBin = UiFactory.CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
-            btnImportBmp = UiFactory.CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
-            btnImportFont = UiFactory.CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
-            btnSaveBin = UiFactory.CreateStyledButton("🚀导出.bin", UiFactory.AccentBlue, 42);
+            btnUnlockAll = CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), 32);
+            btnBatchRender = CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
+            btnImportBin = CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
+            btnImportBmp = CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
+            btnImportFont = CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
+            btnSaveBin = CreateStyledButton("🚀导出.bin", AccentBlue, 42);
 
             btnGrid.Controls.Add(btnUnlockAll, 0, 0);
             btnGrid.SetColumnSpan(btnUnlockAll, 3);
@@ -283,7 +284,7 @@ namespace FC.ui
             txtAsciiChar.TextChanged += (s, e) => {
                 if (!string.IsNullOrEmpty(txtAsciiChar.Text))
                 {
-                    int charVal = (int)txtAsciiChar.Text[0];
+                    int charVal = txtAsciiChar.Text[0];
                     if (charVal >= (int)numAsciiIdx.Minimum && charVal <= (int)numAsciiIdx.Maximum)
                     {
                         if (numAsciiIdx.Value != charVal)

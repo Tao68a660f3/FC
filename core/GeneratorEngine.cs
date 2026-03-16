@@ -2,7 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 
-namespace FC.core
+namespace FC.Core
 {
     internal class GeneratorEngine
     {

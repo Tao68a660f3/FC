@@ -1,3 +1,5 @@
+using FC.UI;
+
 namespace FC
 {
     internal static class Program

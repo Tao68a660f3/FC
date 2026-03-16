@@ -5,7 +5,7 @@ using System.Drawing;
 using System.Net.Http;
 using System.Windows.Forms;
 
-namespace YourProjectName.UI
+namespace FC.UI.Forms
 {
     public class FrmHelp : Form
     {
@@ -17,27 +17,27 @@ namespace YourProjectName.UI
         {
             InitializeComponent(ownerIcon);
             // 在 FrmHelp 的构造函数中，或者 InitializeComponent 之后加这一句
-            this.Load += (s, e) =>
+            Load += (s, e) =>
             {
                 txtCode.SelectionStart = 0;    // 光标移到开头
                 txtCode.SelectionLength = 0;   // 选中长度设为0
-                this.ActiveControl = null;     // 甚至可以直接取消掉窗体的当前活动焦点
+                ActiveControl = null;     // 甚至可以直接取消掉窗体的当前活动焦点
             };
         }
 
         private void InitializeComponent(Icon ownerIcon)
         {
             // 窗体基础设置
-            this.Text = "字库寻址算法参考";
-            this.Size = new Size(620, 520);
-            this.MinimumSize = new Size(400, 300); // 建议设置最小尺寸，防止缩太小
-            this.FormBorderStyle = FormBorderStyle.Sizable; // 开启自由拉伸
-            this.MaximizeBox = true;
-            this.BackColor = Color.FromArgb(32, 32, 35);
-            this.Icon = ownerIcon;
+            Text = "字库寻址算法参考";
+            Size = new Size(620, 520);
+            MinimumSize = new Size(400, 300); // 建议设置最小尺寸，防止缩太小
+            FormBorderStyle = FormBorderStyle.Sizable; // 开启自由拉伸
+            MaximizeBox = true;
+            BackColor = Color.FromArgb(32, 32, 35);
+            Icon = ownerIcon;
 
             // 顶部提示
-            this.lblTitle = new Label
+            lblTitle = new Label
             {
                 Text = "Binary 数据索引算法参考 (C#)",
                 Font = new Font("Microsoft YaHei", 12f, FontStyle.Bold),
@@ -47,7 +47,7 @@ namespace YourProjectName.UI
             };
 
             // 代码展示 TextBox
-            this.txtCode = new TextBox
+            txtCode = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
@@ -63,7 +63,7 @@ namespace YourProjectName.UI
             };
 
             // 底部提示
-            this.lblFooter = new Label
+            lblFooter = new Label
             {
                 Text = "Note: DataOffset = index * (Width * Height / 8)",
                 Font = new Font("Consolas", 9f, FontStyle.Italic),
@@ -72,9 +72,9 @@ namespace YourProjectName.UI
                 Size = new Size(500, 25)
             };
 
-            this.Controls.Add(lblTitle);
-            this.Controls.Add(txtCode);
-            this.Controls.Add(lblFooter);
+            Controls.Add(lblTitle);
+            Controls.Add(txtCode);
+            Controls.Add(lblFooter);
         }
     }
 }
