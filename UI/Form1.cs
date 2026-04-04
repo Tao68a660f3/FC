@@ -14,26 +14,54 @@ namespace FC.UI
 
         public Form1()
         {
-            Size = new Size(1200, 800);
-            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            // --- DPI 适配逻辑开始 ---
+            // 1. 定义 100% 缩放下的理想基准尺寸
+            Size baseSize = new Size(1400, 960);
+
+            // 2. 获取当前屏幕的缩放比例 (基于 96 DPI)
+            using (Graphics g = this.CreateGraphics())
+            {
+                float scaleX = g.DpiX / 150f;
+                float scaleY = g.DpiY / 150f;
+
+                // 设置适配后的初始大小和最小大小
+                this.Size = new Size((int)(baseSize.Width * scaleX), (int)(baseSize.Height * scaleY));
+                this.MinimumSize = this.Size; // 锁定最小值，防止 UI 在小窗口下挤成一团
+            }
+            // --- DPI 适配逻辑结束 ---
+
+            this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            this.Text = "点阵字库工具 V2"; // 建议顺手改个标题
+            this.StartPosition = FormStartPosition.CenterScreen;
 
             // 1. 建立一个全局表格布局
             TableLayoutPanel rootLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 RowCount = 2,
-                ColumnCount = 1
+                ColumnCount = 1,
+                BackColor = Color.FromArgb(30, 30, 30) // 建议背景色保持一致
             };
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // 第一行随菜单高度
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // 第二行占满剩余空间
-            Controls.Add(rootLayout);
+
+            // 清除默认样式并重新添加，确保比例准确
+            rootLayout.RowStyles.Clear();
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // 第一行：菜单栏
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // 第二行：内容区
+            this.Controls.Add(rootLayout);
 
             // 2. 初始化菜单并放入第一行
             InitMenuBar();
-            rootLayout.Controls.Add(MainMenuStrip, 0, 0);
+            if (MainMenuStrip != null)
+            {
+                rootLayout.Controls.Add(MainMenuStrip, 0, 0);
+            }
 
             // 3. 初始化模块容器并放入第二行
-            _moduleContainer = new Panel { Dock = DockStyle.Fill };
+            _moduleContainer = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0)
+            };
             rootLayout.Controls.Add(_moduleContainer, 0, 1);
 
             SwitchModule(new AsciiGeneratorControl());

@@ -121,7 +121,7 @@ namespace FC.UI
             Label lbl = new Label
             {
                 Text = labelText,
-                Dock = DockStyle.Fill,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
                 TextAlign = ContentAlignment.TopRight,
                 ForeColor = TextGray,
                 AutoSize = false
@@ -129,7 +129,7 @@ namespace FC.UI
 
             ComboBox cmb = new ComboBox
             {
-                Dock = DockStyle.Fill,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 BackColor = ControlBg,
                 ForeColor = Color.White,

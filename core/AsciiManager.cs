@@ -10,7 +10,10 @@ namespace FC.Core
 {
     public class AsciiCharEntry : IDisposable
     {
-        public Bitmap Glyph { get; set; } // 本体像素数据
+        public Bitmap Glyph
+        {
+            get; set;
+        } // 本体像素数据
         public int Width { get; set; } = 8; // 导出到协议的宽度
         public bool IsManual { get; set; } = true; // 锁定标志：手动编辑或导入后为 true
 
@@ -19,10 +22,16 @@ namespace FC.Core
 
     public class AsciiManager : IDisposable
     {
-        public AsciiCharEntry[] AsciiSet { get; } = new AsciiCharEntry[256];
+        // V2 协议配置常量
+        public const byte CFG_WIDTH_ABS = 0x01;  // Bit 0: 绝对宽度模式
+        public const byte CFG_SCAN_VERT = 0x02;  // Bit 1: 纵向扫描 (1) vs 横向 (0)
+        public const byte CFG_BIT_LSB = 0x04;  // Bit 2: 小端位序 LSB (1) vs 大端 MSB (0)
 
-        // 预览图：滑块拖动时实时生成，不破坏本体
-        public Bitmap PreviewBitmap { get; private set; }
+        public AsciiCharEntry[] AsciiSet { get; } = new AsciiCharEntry[256];
+        public Bitmap PreviewBitmap
+        {
+            get; private set;
+        }
 
         public AsciiManager()
         {
@@ -31,10 +40,76 @@ namespace FC.Core
             PreviewBitmap = new Bitmap(16, 16);
         }
 
+        // --- 0. 自动化处理算法 ---
+
+        public void AutoCropHorizontal(int idx)
+        {
+            if (idx < 0 || idx > 255)
+                return;
+            Bitmap bmp = AsciiSet[idx].Glyph;
+            int firstX = -1, lastX = -1;
+
+            for (int x = 0; x < bmp.Width; x++)
+            {
+                for (int y = 0; y < bmp.Height; y++)
+                {
+                    if (bmp.GetPixel(x, y).R > 128)
+                    {
+                        if (firstX == -1)
+                            firstX = x;
+                        lastX = x;
+                        break;
+                    }
+                }
+            }
+
+            if (firstX == -1)
+                return;
+
+            if (firstX > 0)
+                ApplyShift(idx, -firstX, 0);
+
+            AsciiSet[idx].Width = (lastX - firstX) + 1;
+            AsciiSet[idx].IsManual = true;
+        }
+
+        public void AutoCenter(int idx)
+        {
+            if (idx < 0 || idx > 255)
+                return;
+            Bitmap bmp = AsciiSet[idx].Glyph;
+
+            int firstX = -1, lastX = -1;
+            for (int x = 0; x < bmp.Width; x++)
+            {
+                for (int y = 0; y < bmp.Height; y++)
+                    if (bmp.GetPixel(x, y).R > 128)
+                    {
+                        if (firstX == -1)
+                            firstX = x;
+                        lastX = x;
+                        break;
+                    }
+            }
+
+            if (firstX == -1)
+                return;
+
+            int contentWidth = (lastX - firstX) + 1;
+            int targetX = (bmp.Width - contentWidth) / 2;
+
+            ApplyShift(idx, targetX - firstX, 0);
+
+            // 核心逻辑：居中后宽度强制设为画布宽度
+            AsciiSet[idx].Width = bmp.Width;
+            AsciiSet[idx].IsManual = true;
+        }
+
         // --- 1. 矢量预览接口 (仅反映 FontRender 的参数效果) ---
         public void UpdateVectorPreview(int idx, FontRender renderer)
         {
-            if (idx < 0 || idx > 255) return;
+            if (idx < 0 || idx > 255)
+                return;
 
             using (Bitmap raw = renderer.RenderCharToBitmap(((char)idx).ToString()))
             {
@@ -47,7 +122,8 @@ namespace FC.Core
         // --- 2. 位图平移预览接口 (反映对本体 Glyph 的物理位移效果) ---
         public void UpdateShiftPreview(int idx, int dx, int dy)
         {
-            if (idx < 0 || idx > 255) return;
+            if (idx < 0 || idx > 255)
+                return;
             PreviewBitmap?.Dispose();
             // 基于本体 Glyph 生成平移后的预览图，不触碰本体 Glyph
             PreviewBitmap = ShiftBitmap(AsciiSet[idx].Glyph, dx, dy);
@@ -56,7 +132,8 @@ namespace FC.Core
         // --- 3. 物理移位确认 (Master级操作：将位移写死到本体) ---
         public void ApplyShift(int idx, int dx, int dy)
         {
-            if (idx < 0 || idx > 255 || (dx == 0 && dy == 0)) return;
+            if (idx < 0 || idx > 255 || (dx == 0 && dy == 0))
+                return;
 
             Bitmap oldBmp = AsciiSet[idx].Glyph;
             // 直接利用已有的 ShiftBitmap 逻辑生成新图
@@ -69,11 +146,13 @@ namespace FC.Core
         // --- 4. 矢量生成确认 (将矢量底稿写死到本体) ---
         public void GenerateFromVector(int idx, FontRender renderer)
         {
-            if (idx < 0 || idx > 255) return;
+            if (idx < 0 || idx > 255)
+                return;
 
             using (Bitmap raw = renderer.RenderCharToBitmap(((char)idx).ToString()))
             {
-                if (raw == null) return;
+                if (raw == null)
+                    return;
 
                 AsciiSet[idx].Glyph?.Dispose();
                 // 调用抽离逻辑
@@ -99,7 +178,8 @@ namespace FC.Core
         // --- 3. 落笔确认 (Apply) ---
         public void ApplyToCurrent(int idx, int newWidth)
         {
-            if (PreviewBitmap == null) return;
+            if (PreviewBitmap == null)
+                return;
             AsciiSet[idx].Glyph?.Dispose();
             AsciiSet[idx].Glyph = new Bitmap(PreviewBitmap);
             AsciiSet[idx].Width = newWidth;
@@ -127,7 +207,8 @@ namespace FC.Core
 
         public void UnlockAll()
         {
-            foreach (var e in AsciiSet) e.IsManual = false;
+            foreach (var e in AsciiSet)
+                e.IsManual = false;
         }
 
         public void NewBlank(int w, int h)
@@ -136,7 +217,8 @@ namespace FC.Core
             {
                 AsciiSet[i].Glyph?.Dispose();
                 AsciiSet[i].Glyph = new Bitmap(w, h);
-                using (Graphics g = Graphics.FromImage(AsciiSet[i].Glyph)) g.Clear(Color.Black);
+                using (Graphics g = Graphics.FromImage(AsciiSet[i].Glyph))
+                    g.Clear(Color.Black);
                 AsciiSet[i].Width = w / 2;
                 AsciiSet[i].IsManual = true; // 纯手工模式起始
             }
@@ -201,18 +283,21 @@ namespace FC.Core
 
         public bool ImportFromBin(string path, out int canvasW, out int canvasH)
         {
-            canvasW = 16; canvasH = 16;
+            canvasW = 16;
+            canvasH = 16;
             try
             {
                 using (BinaryReader br = new BinaryReader(File.OpenRead(path)))
                 {
-                    if (new string(br.ReadChars(4)) != "FONT") return false;
+                    if (new string(br.ReadChars(4)) != "FONT")
+                        return false;
                     canvasH = br.ReadByte();
                     canvasW = br.ReadByte();
                     int bpc = br.ReadUInt16(); // 每字符占用的字节数
                     br.ReadBytes(8); // 跳过保留位
 
-                    for (int i = 0; i < 256; i++) AsciiSet[i].Width = br.ReadByte();
+                    for (int i = 0; i < 256; i++)
+                        AsciiSet[i].Width = br.ReadByte();
 
                     for (int i = 0; i < 256; i++)
                     {
@@ -231,9 +316,11 @@ namespace FC.Core
         // 增加 out 参数，确保尺寸能带回 UI
         public bool ImportFromFontText(string path, out int canvasW, out int canvasH)
         {
-            canvasW = 16; canvasH = 16; // 默认值
+            canvasW = 16;
+            canvasH = 16; // 默认值
             string[] lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
-            if (lines.Length < 3) return false;
+            if (lines.Length < 3)
+                return false;
 
             try
             {
@@ -276,7 +363,8 @@ namespace FC.Core
                 {
                     int startX = (i % cols) * cellW;
                     int startY = (i / cols) * cellH;
-                    if (startY + cellH > src.Height) break;
+                    if (startY + cellH > src.Height)
+                        break;
 
                     Bitmap target = new Bitmap(cellW, cellH, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
@@ -302,78 +390,80 @@ namespace FC.Core
             }
         }
 
-        // --- 6. 导出逻辑 ---
-        public void SaveToBin(string path, int canvasW, int canvasH, FontRender renderer)
-        {
-            int rowStride = (canvasW + 7) / 8;
-            int bpc = canvasH * rowStride;
+        // --- 6. 增强型导出逻辑 (V2) ---
 
-            using (BinaryWriter bw = new BinaryWriter(File.Open(path, FileMode.Create)))
+        public void SaveToBinV2(string path, int canvasW, int canvasH, byte config)
+        {
+            bool isVert = (config & CFG_SCAN_VERT) != 0;
+            bool isLsb = (config & CFG_BIT_LSB) != 0;
+
+            int stride = isVert ? (canvasH + 7) / 8 : (canvasW + 7) / 8;
+            int bpc = isVert ? canvasW * stride : canvasH * stride;
+
+            using (MemoryStream ms = new MemoryStream())
+            using (BinaryWriter bw = new BinaryWriter(ms))
             {
-                // 1. Header (16字节) - 严格对齐 Python 的 <BBH
+                // Header (16字节)
                 bw.Write(new char[] { 'F', 'O', 'N', 'T' });
                 bw.Write((byte)canvasH);
                 bw.Write((byte)canvasW);
-                bw.Write((ushort)bpc); // < 代表小端序，BinaryWriter 默认就是小端
-                bw.Write(new byte[8]);
+                bw.Write((ushort)bpc);
+                bw.Write(config);
+                bw.Write(new byte[7]); // Reserved
 
-                // 2. 宽度表 (256字节)
+                // Widths (256字节)
+                for (int i = 0; i < 256; i++)
+                    bw.Write((byte)AsciiSet[i].Width);
+
+                // Data 编码
                 for (int i = 0; i < 256; i++)
                 {
-                    bw.Write((byte)AsciiSet[i].Width);
+                    byte[] data = EncodeGlyph(AsciiSet[i].Glyph, canvasW, canvasH, isVert, isLsb, stride, bpc);
+                    bw.Write(data);
                 }
 
-                // 3. 点阵数据 (核心修复)
-                for (int i = 0; i < 256; i++)
+                // 计算 Checksum (uint16 累加)
+                byte[] rawPayload = ms.ToArray();
+                ushort checksum = 0;
+                foreach (byte b in rawPayload)
+                    checksum += b;
+
+                // 写入文件并追加校验和
+                File.WriteAllBytes(path, rawPayload);
+                using (FileStream fs = new FileStream(path, FileMode.Append))
+                using (BinaryWriter cw = new BinaryWriter(fs))
                 {
-                    Bitmap bmp = AsciiSet[i].Glyph;
-                    // 确保尺寸一致，如果不一致则在内存绘制一个匹配的
-                    Bitmap targetBmp = bmp;
-                    bool isTemp = false;
-                    if (bmp.Width != canvasW || bmp.Height != canvasH)
-                    {
-                        targetBmp = new Bitmap(canvasW, canvasH);
-                        using (Graphics g = Graphics.FromImage(targetBmp))
-                        {
-                            g.Clear(Color.Black);
-                            g.DrawImage(bmp, 0, 0);
-                        }
-                        isTemp = true;
-                    }
-
-                    // --- 按照 Python 母本逻辑手动转码 ---
-                    byte[] charData = new byte[bpc];
-                    for (int y = 0; y < canvasH; y++)
-                    {
-                        for (int x = 0; x < canvasW; x++)
-                        {
-                            Color c = targetBmp.GetPixel(x, y);
-                            // 如果是白色像素(有字)，则设为 1
-                            if (c.R > 128)
-                            {
-                                int bytePos = y * rowStride + (x / 8);
-                                int bitPos = 7 - (x % 8); // 关键：大端序排列 (MSB在左)
-                                charData[bytePos] |= (byte)(1 << bitPos);
-                            }
-                        }
-                    }
-
-                    // 写入
-                    for (int j = 0; j < charData.Length; j++)
-                    {
-                        bw.Write((byte)charData[j]);
-                    }
-
-                    if (isTemp)
-                        targetBmp.Dispose();
+                    cw.Write(checksum);
                 }
             }
+        }
+
+        private byte[] EncodeGlyph(Bitmap bmp, int w, int h, bool vert, bool lsb, int stride, int bpc)
+        {
+            byte[] res = new byte[bpc];
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    if (bmp.GetPixel(x, y).R > 128)
+                    {
+                        int mainIdx = vert ? x : y;
+                        int subIdx = vert ? y : x;
+
+                        int bytePos = mainIdx * stride + (subIdx / 8);
+                        int bitPos = lsb ? (subIdx % 8) : (7 - (subIdx % 8));
+                        res[bytePos] |= (byte)(1 << bitPos);
+                    }
+                }
+            }
+            return res;
         }
 
         // --- 辅助工具 ---
         public int CalculateWidth(Bitmap bmp)
         {
-            if (bmp == null) return 8;
+            if (bmp == null)
+                return 8;
 
             // 获取位图当前的真实物理尺寸，严禁使用任何外部变量
             int realW = bmp.Width;
@@ -389,7 +479,8 @@ namespace FC.Core
                     {
                         Color c = bmp.GetPixel(x, y);
                         // 只要有像素（R通道判定），就返回当前宽度
-                        if (c.R > 20) return x + 1;
+                        if (c.R > 20)
+                            return x + 1;
                     }
                 }
             }
@@ -431,7 +522,8 @@ namespace FC.Core
 
         public void Dispose()
         {
-            foreach (var e in AsciiSet) e.Dispose();
+            foreach (var e in AsciiSet)
+                e.Dispose();
             PreviewBitmap?.Dispose();
         }
     }

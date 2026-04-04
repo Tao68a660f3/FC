@@ -21,6 +21,11 @@ namespace FC.UI.Controls
         private Button btnLoadTTF, btnApplyVector, btnApplyShift, btnBatchRender, btnSaveBin, btnUnlockAll;
         private Button btnImportBin, btnImportBmp, btnImportFont;
         private PixelEditorControl pixelEditor;
+        // 协议配置
+        private CheckBox chkWidthAbs;
+        private ComboBox cmbScanDir, cmbBitOrder;
+        // 快捷操作
+        private Button btnAutoCrop, btnAutoCenter;
 
         public AsciiGeneratorControl()
         {
@@ -61,22 +66,67 @@ namespace FC.UI.Controls
                 RowCount = 4,
                 Padding = new Padding(12)
             };
-            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 14F)); // 1. 画布
-            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 36F)); // 2. 矢量生成
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 20F)); // 1. 画布
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 30F)); // 2. 矢量生成
             leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 18F)); // 3. 物理位移
             leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 32F)); // 4. 导航与执行
             mainTable.Controls.Add(leftGrid, 0, 0);
 
             // --- 1. 画布与协议 ---
             GroupBox gbCanvas = CreateModernGroupBox("画布与协议", 0);
-            gbCanvas.Dock = DockStyle.Fill; // 确保填满第1行
-            TableLayoutPanel canvasGrid = CreateGridContainer(2, 4);
+            gbCanvas.Dock = DockStyle.Fill;
+            TableLayoutPanel canvasGrid = CreateGridContainer(3, 4);
+
             numCanvasW = AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
             numCanvasW.Minimum = 1;
             numCanvasH = AddGridControl(canvasGrid, "画布高", 16, 0, 1);
             numCanvasH.Minimum = 1;
             numActiveWidth = AddGridControl(canvasGrid, "有效宽", 8, 1, 0);
             numActiveWidth.Minimum = 0;
+
+            // 新增：绝对宽度模式 CheckBox
+            chkWidthAbs = new CheckBox
+            {
+                Text = "绝对宽度",
+                ForeColor = TextGray,
+                // 关键点 1：只 Anchor 到左侧，防止文字在窄列里强制换行
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(20, 0, 0, 0), // 左边给点留白，别挨数值框太紧
+                CheckAlign = ContentAlignment.MiddleLeft
+            };
+            // 关键点 2：放在第 2 行（索引 1）、第 3 列（索引 2）
+            canvasGrid.Controls.Add(chkWidthAbs, 2, 1);
+            // 关键点 3：设置跨 2 列，把第 3、4 列的空间合并给它
+            canvasGrid.SetColumnSpan(chkWidthAbs, 2);
+
+            // 新增：扫描方向与位序选择
+            cmbScanDir = new ComboBox
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = ControlBg,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cmbScanDir.Items.AddRange(new string[] { "横向 (H)", "纵向 (V)" });
+            cmbScanDir.SelectedIndex = 0;
+            canvasGrid.Controls.Add(new Label { Text = "方向", ForeColor = TextGray, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 0, 2);
+            canvasGrid.Controls.Add(cmbScanDir, 1, 2);
+
+            cmbBitOrder = new ComboBox
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = ControlBg,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cmbBitOrder.Items.AddRange(new string[] { "MSB First", "LSB First" });
+            cmbBitOrder.SelectedIndex = 0;
+            canvasGrid.Controls.Add(new Label { Text = "位序", ForeColor = TextGray, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 2, 2);
+            canvasGrid.Controls.Add(cmbBitOrder, 3, 2);
+
             gbCanvas.Controls.Add(canvasGrid);
             leftGrid.Controls.Add(gbCanvas, 0, 0);
 
@@ -121,7 +171,18 @@ namespace FC.UI.Controls
             numShiftY = AddGridControl(shiftGrid, "平移Y", 0, 0, 1);
             btnApplyShift = CreateStyledButton("应用物理位移", Color.FromArgb(120, 60, 60), 32);
             btnApplyShift.Dock = DockStyle.Bottom;
+
+            btnAutoCrop = CreateStyledButton("水平裁边", Color.FromArgb(45, 85, 115), 32);
+            btnAutoCenter = CreateStyledButton("自动居中", Color.FromArgb(45, 85, 115), 32);
+            // 创建一个容器横向放置这两个按钮
+            TableLayoutPanel autoBtnGrid = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 40, ColumnCount = 2 };
+            autoBtnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            autoBtnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            autoBtnGrid.Controls.Add(btnAutoCrop, 0, 0);
+            autoBtnGrid.Controls.Add(btnAutoCenter, 1, 0);
+
             gbShift.Controls.Add(shiftGrid);
+            gbShift.Controls.Add(autoBtnGrid);
             gbShift.Controls.Add(btnApplyShift);
             leftGrid.Controls.Add(gbShift, 0, 2);
 
@@ -177,7 +238,8 @@ namespace FC.UI.Controls
         private void BindEvents()
         {
             // --- 字体与渲染逻辑 ---
-            btnLoadTTF.Click += (s, e) => {
+            btnLoadTTF.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.ttc;*.otf" })
                     if (ofd.ShowDialog() == DialogResult.OK)
                     {
@@ -194,7 +256,8 @@ namespace FC.UI.Controls
             numFontScaleX.ValueChanged += vectorTrigger;
             numFontScaleY.ValueChanged += vectorTrigger;
 
-            btnApplyVector.Click += (s, e) => {
+            btnApplyVector.Click += (s, e) =>
+            {
                 if (!string.IsNullOrEmpty(_lastTtfPath))
                 {
                     _mgr.GenerateFromVector(_currentIdx, _fontRender);
@@ -211,7 +274,8 @@ namespace FC.UI.Controls
             };
 
             // --- 导入功能绑定 ---
-            btnImportBin.Click += (s, e) => {
+            btnImportBin.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "BIN|*.bin" })
                     if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromBin(ofd.FileName, out int w, out int h))
                     {
@@ -225,7 +289,8 @@ namespace FC.UI.Controls
                     }
             };
 
-            btnImportBmp.Click += (s, e) => {
+            btnImportBmp.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Bitmap|*.bmp" })
                     if (ofd.ShowDialog() == DialogResult.OK)
                     {
@@ -234,7 +299,8 @@ namespace FC.UI.Controls
                     }
             };
 
-            btnImportFont.Click += (s, e) => {
+            btnImportFont.Click += (s, e) =>
+            {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "FONT|*.font;*.txt" })
                     if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromFontText(ofd.FileName, out int w, out int h))
                     {
@@ -248,7 +314,8 @@ namespace FC.UI.Controls
             };
 
             // --- 批量、平移、解锁 ---
-            btnBatchRender.Click += (s, e) => {
+            btnBatchRender.Click += (s, e) =>
+            {
                 if (!string.IsNullOrEmpty(_lastTtfPath))
                 {
                     _mgr.BatchRender(_fontRender, false);
@@ -257,13 +324,30 @@ namespace FC.UI.Controls
                 }
             };
 
-            btnSaveBin.Click += (s, e) => {
-                using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Binary|*.bin" })
+            btnSaveBin.Click += (s, e) =>
+            {
+                // 构造配置位
+                byte config = 0;
+                if (chkWidthAbs.Checked)
+                    config |= AsciiManager.CFG_WIDTH_ABS;
+                if (cmbScanDir.SelectedIndex == 1)
+                    config |= AsciiManager.CFG_SCAN_VERT;
+                if (cmbBitOrder.SelectedIndex == 1)
+                    config |= AsciiManager.CFG_BIT_LSB;
+
+                using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Binary Font|*.bin" })
+                {
                     if (sfd.ShowDialog() == DialogResult.OK)
-                        _mgr.SaveToBin(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, _fontRender);
+                    {
+                        // 调用 V2 导出方法
+                        _mgr.SaveToBinV2(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, config);
+                        MessageBox.Show($"导出成功！\nConfig: 0x{config:X2}", "提示");
+                    }
+                }
             };
 
-            btnApplyShift.Click += (s, e) => {
+            btnApplyShift.Click += (s, e) =>
+            {
                 _mgr.ApplyShift(_currentIdx, -(int)numShiftX.Value, -(int)numShiftY.Value);
                 numShiftX.Value = 0;
                 numShiftY.Value = 0;
@@ -273,7 +357,8 @@ namespace FC.UI.Controls
             btnUnlockAll.Click += (s, e) => { _mgr.UnlockAll(); OnIdxChanged(); };
 
             // --- ASCII 联动 (防崩溃版本) ---
-            numAsciiIdx.ValueChanged += (s, e) => {
+            numAsciiIdx.ValueChanged += (s, e) =>
+            {
                 _currentIdx = (int)numAsciiIdx.Value;
                 string newChar = ((char)_currentIdx).ToString();
                 if (txtAsciiChar.Text != newChar)
@@ -281,7 +366,8 @@ namespace FC.UI.Controls
                 OnIdxChanged();
             };
 
-            txtAsciiChar.TextChanged += (s, e) => {
+            txtAsciiChar.TextChanged += (s, e) =>
+            {
                 if (!string.IsNullOrEmpty(txtAsciiChar.Text))
                 {
                     int charVal = txtAsciiChar.Text[0];
@@ -293,14 +379,16 @@ namespace FC.UI.Controls
                 }
             };
 
-            chkLocked.CheckedChanged += (s, e) => {
+            chkLocked.CheckedChanged += (s, e) =>
+            {
                 if (chkLocked.Focused)
                     _mgr.AsciiSet[_currentIdx].IsManual = chkLocked.Checked;
             };
 
             // --- 画布响应 ---
             // --- 核心修复：画布尺寸变更监听 ---
-            EventHandler canvasSizeTrigger = (s, e) => {
+            EventHandler canvasSizeTrigger = (s, e) =>
+            {
                 int w = (int)numCanvasW.Value;
                 int h = (int)numCanvasH.Value;
 
@@ -318,12 +406,25 @@ namespace FC.UI.Controls
             numCanvasW.ValueChanged += canvasSizeTrigger;
             numCanvasH.ValueChanged += canvasSizeTrigger;
 
-            numActiveWidth.ValueChanged += (s, e) => {
+            numActiveWidth.ValueChanged += (s, e) =>
+            {
                 _mgr.AsciiSet[_currentIdx].Width = (int)numActiveWidth.Value;
                 pixelEditor.ActiveWidth = (int)numActiveWidth.Value;
                 pixelEditor.Invalidate();
             };
             pixelEditor.DataChanged += () => { _mgr.AsciiSet[_currentIdx].IsManual = true; chkLocked.Checked = true; };
+
+            btnAutoCrop.Click += (s, e) =>
+            {
+                _mgr.AutoCropHorizontal(_currentIdx); // 调用新方法
+                OnIdxChanged(); // 刷新 UI 同步宽度显示
+            };
+
+            btnAutoCenter.Click += (s, e) =>
+            {
+                _mgr.AutoCenter(_currentIdx); // 调用新方法
+                OnIdxChanged(); // 刷新 UI 同步宽度显示
+            };
         }
 
         private void OnIdxChanged()
