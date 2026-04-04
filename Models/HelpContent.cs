@@ -1,4 +1,7 @@
-﻿namespace FC.Resources
+﻿using System.Collections.Generic;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace FC.Resources
 {
     public static class HelpContent
     {
@@ -74,5 +77,93 @@ public int GetIndexByCode(ushort code)
     return -1;
 }
 ";
+
+        // ASC Bin 核心逻辑
+        public const string AscBinAlgorithm =
+"""
+
+// [BIN格式ASCII字库读取参考]
+
+public bool ImportFromBinV2(string path, out int canvasW, out int canvasH, out byte config)
+{
+    canvasW = 16;
+    canvasH = 16;
+    config = 0;
+    try
+    {
+        using (BinaryReader br = new BinaryReader(File.OpenRead(path)))
+        {
+            if (new string(br.ReadChars(4)) != "FONT")
+                return false;
+
+            canvasH = br.ReadByte();
+            canvasW = br.ReadByte();
+            int bpc = br.ReadUInt16();
+
+
+            config = br.ReadByte(); // 读取 V2 配置字节 (偏移 0x08)
+            br.ReadBytes(7);        // 跳过剩余的 7 字节保留位
+
+            // 同步扫描模式参数
+            bool isVert = (config & CFG_SCAN_VERT) != 0;
+            bool isLsb = (config & CFG_BIT_LSB) != 0;
+            int stride = isVert ? (canvasH + 7) / 8 : (canvasW + 7) / 8;
+
+            for (int i = 0; i < 256; i++)
+                AsciiSet[i].Width = br.ReadByte();
+
+            for (int i = 0; i < 256; i++)
+            {
+                byte[] data = br.ReadBytes(bpc);
+                AsciiSet[i].Glyph?.Dispose();
+                // 使用通用的 EncodeGlyph 的逆向逻辑：DecodeGlyph
+                AsciiSet[i].Glyph = DecodeGlyph(data, canvasW, canvasH, isVert, isLsb, stride);
+                AsciiSet[i].IsManual = true;
+            }
+        }
+        return true;
+    }
+    catch { return false; }
+}
+
+private Bitmap DecodeGlyph(byte[] data, int w, int h, bool vert, bool lsb, int stride)
+{
+    // 显式创建指定尺寸的位图
+    Bitmap bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+    // 初始化背景为黑色
+    using (Graphics g = Graphics.FromImage(bmp))
+    {
+        g.Clear(Color.Black);
+    }
+
+    int mainLimit = vert ? w : h; // 纵向扫描主轴是宽(x)，横向是高(y)
+    int subLimit = vert ? h : w;  // 纵向扫描副轴是高(y)，横向是宽(x)
+
+    for (int m = 0; m < mainLimit; m++)
+    {
+        for (int s = 0; s < subLimit; s++)
+        {
+            int bytePos = m * stride + (s / 8);
+            int bitPos = lsb ? (s % 8) : (7 - (s % 8));
+
+            if (bytePos < data.Length)
+            {
+                bool isOn = (data[bytePos] & (1 << bitPos)) != 0;
+                if (isOn)
+                {
+                    // 还原回 X, Y 坐标
+                    int resX = vert ? m : s;
+                    int resY = vert ? s : m;
+
+                    if (resX < w && resY < h)
+                        bmp.SetPixel(resX, resY, Color.White);
+                }
+            }
+        }
+    }
+    return bmp;
+}
+""";
     }
 }

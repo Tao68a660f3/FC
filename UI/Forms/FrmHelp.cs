@@ -23,6 +23,7 @@ namespace FC.UI.Forms
                 txtCode.SelectionLength = 0;   // 选中长度设为0
                 ActiveControl = null;     // 甚至可以直接取消掉窗体的当前活动焦点
             };
+            this.Size = new Size(1000, 720);
         }
 
         private void InitializeComponent(Icon ownerIcon)
@@ -42,7 +43,7 @@ namespace FC.UI.Forms
                 Text = "Binary 数据索引算法参考 (C#)",
                 Font = new Font("Microsoft YaHei", 12f, FontStyle.Bold),
                 ForeColor = Color.MediumPurple,
-                Location = new Point(15, 15),
+                Location = new Point(15, 5),
                 Size = new Size(400, 30)
             };
 
@@ -56,9 +57,9 @@ namespace FC.UI.Forms
                 Font = new Font("Consolas", 10.5f), // 核心：等宽字体
                 BorderStyle = BorderStyle.FixedSingle,
                 ScrollBars = ScrollBars.Both,
-                Location = new Point(15, 55),
+                Location = new Point(15, 70),
                 Size = new Size(575, 380),
-                Text = HelpContent.GbkAlgorithm + "\r\n\r\n" + HelpContent.Gb2312Algorithm,
+                Text = HelpContent.GbkAlgorithm + "\r\n\r\n" + HelpContent.Gb2312Algorithm + "\r\n\r\n" + HelpContent.AscBinAlgorithm,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -68,7 +69,7 @@ namespace FC.UI.Forms
                 Text = "Note: DataOffset = index * (Width * Height / 8)",
                 Font = new Font("Consolas", 9f, FontStyle.Italic),
                 ForeColor = Color.DimGray,
-                Location = new Point(15, 445),
+                Location = new Point(15, 40),
                 Size = new Size(500, 25)
             };
 
