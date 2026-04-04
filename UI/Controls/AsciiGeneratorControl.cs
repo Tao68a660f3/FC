@@ -277,16 +277,24 @@ namespace FC.UI.Controls
             btnImportBin.Click += (s, e) =>
             {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "BIN|*.bin" })
-                    if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromBin(ofd.FileName, out int w, out int h))
+                {
+                    // 增加 out byte config 参数
+                    if (ofd.ShowDialog() == DialogResult.OK && _mgr.ImportFromBinV2(ofd.FileName, out int w, out int h, out byte config))
                     {
+                        // 1. 同步画布和编辑器尺寸
                         numCanvasW.Value = w;
                         numCanvasH.Value = h;
-
                         pixelEditor.CanvasW = w;
                         pixelEditor.CanvasH = h;
 
+                        // 2. 核心：同步 V2 协议 UI 状态
+                        chkWidthAbs.Checked = (config & AsciiManager.CFG_WIDTH_ABS) != 0;
+                        cmbScanDir.SelectedIndex = (config & AsciiManager.CFG_SCAN_VERT) != 0 ? 1 : 0;
+                        cmbBitOrder.SelectedIndex = (config & AsciiManager.CFG_BIT_LSB) != 0 ? 1 : 0;
+
                         OnIdxChanged();
                     }
+                }
             };
 
             btnImportBmp.Click += (s, e) =>

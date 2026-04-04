@@ -49,6 +49,7 @@ namespace FC.Core
             Bitmap bmp = AsciiSet[idx].Glyph;
             int firstX = -1, lastX = -1;
 
+            // 1. 扫描当前位图中的像素范围
             for (int x = 0; x < bmp.Width; x++)
             {
                 for (int y = 0; y < bmp.Height; y++)
@@ -64,11 +65,15 @@ namespace FC.Core
             }
 
             if (firstX == -1)
-                return;
+                return; // 全空不处理
 
+            // 2. 执行物理位移（左对齐）
             if (firstX > 0)
+            {
                 ApplyShift(idx, -firstX, 0);
+            }
 
+            // 3. 重要：裁边后的“有效宽度”就是内容的物理宽度
             AsciiSet[idx].Width = (lastX - firstX) + 1;
             AsciiSet[idx].IsManual = true;
         }
@@ -77,32 +82,40 @@ namespace FC.Core
         {
             if (idx < 0 || idx > 255)
                 return;
-            Bitmap bmp = AsciiSet[idx].Glyph;
 
-            int firstX = -1, lastX = -1;
-            for (int x = 0; x < bmp.Width; x++)
+            // --- 第一步：扫描边界 (直接访问当前最新的 Glyph) ---
+            int curFirstX = -1, curLastX = -1;
+
+            // 注意：这里直接用 AsciiSet[idx].Glyph.Width，不缓存局部变量
+            for (int x = 0; x < AsciiSet[idx].Glyph.Width; x++)
             {
-                for (int y = 0; y < bmp.Height; y++)
-                    if (bmp.GetPixel(x, y).R > 128)
+                for (int y = 0; y < AsciiSet[idx].Glyph.Height; y++)
+                {
+                    if (AsciiSet[idx].Glyph.GetPixel(x, y).R > 128)
                     {
-                        if (firstX == -1)
-                            firstX = x;
-                        lastX = x;
+                        if (curFirstX == -1)
+                            curFirstX = x;
+                        curLastX = x;
                         break;
                     }
+                }
             }
 
-            if (firstX == -1)
+            if (curFirstX == -1)
                 return;
 
-            int contentWidth = (lastX - firstX) + 1;
-            int targetX = (bmp.Width - contentWidth) / 2;
+            // --- 第二步：计算并应用位移 ---
+            int contentWidth = (curLastX - curFirstX) + 1;
+            int targetX = (AsciiSet[idx].Glyph.Width - contentWidth) / 2;
+            int dx = targetX - curFirstX;
 
-            ApplyShift(idx, targetX - firstX, 0);
+            if (dx != 0)
+            {
+                ApplyShift(idx, dx, 0); // ApplyShift 内部会 Dispose 旧的，生成新的
+            }
 
-            // 核心逻辑：居中后宽度强制设为画布宽度
-            AsciiSet[idx].Width = bmp.Width;
-            AsciiSet[idx].IsManual = true;
+            // --- 第三步：设置宽度 ---
+            AsciiSet[idx].Width = AsciiSet[idx].Glyph.Width;
         }
 
         // --- 1. 矢量预览接口 (仅反映 FontRender 的参数效果) ---
@@ -132,15 +145,27 @@ namespace FC.Core
         // --- 3. 物理移位确认 (Master级操作：将位移写死到本体) ---
         public void ApplyShift(int idx, int dx, int dy)
         {
-            if (idx < 0 || idx > 255 || (dx == 0 && dy == 0))
+            if (idx < 0 || idx > 255)
                 return;
 
             Bitmap oldBmp = AsciiSet[idx].Glyph;
-            // 直接利用已有的 ShiftBitmap 逻辑生成新图
-            AsciiSet[idx].Glyph = ShiftBitmap(oldBmp, dx, dy);
+            int w = oldBmp.Width;
+            int h = oldBmp.Height;
 
+            Bitmap newBmp = new Bitmap(w, h);
+            using (Graphics g = Graphics.FromImage(newBmp))
+            {
+                // 关键：清空新位图背景
+                g.Clear(Color.Black);
+                // 绘制偏移后的旧位图
+                g.DrawImage(oldBmp, dx, dy);
+            }
+
+            // 核心修复：先替换引用，再销毁旧的，防止悬空指针
+            AsciiSet[idx].Glyph = newBmp;
             oldBmp.Dispose();
-            AsciiSet[idx].IsManual = true; // 物理操作后自动锁定
+
+            AsciiSet[idx].IsManual = true;
         }
 
         // --- 4. 矢量生成确认 (将矢量底稿写死到本体) ---
@@ -311,6 +336,72 @@ namespace FC.Core
                 return true;
             }
             catch { return false; }
+        }
+
+        // 修改 AsciiManager.cs 中的导入方法
+
+        public bool ImportFromBinV2(string path, out int canvasW, out int canvasH, out byte config)
+        {
+            canvasW = 16;
+            canvasH = 16;
+            config = 0;
+            try
+            {
+                using (BinaryReader br = new BinaryReader(File.OpenRead(path)))
+                {
+                    if (new string(br.ReadChars(4)) != "FONT")
+                        return false;
+
+                    canvasH = br.ReadByte();
+                    canvasW = br.ReadByte();
+                    int bpc = br.ReadUInt16();
+
+                    config = br.ReadByte(); // 读取 V2 配置字节 (偏移 0x08)
+                    br.ReadBytes(7);        // 跳过剩余的 7 字节保留位
+
+                    // 同步扫描模式参数
+                    bool isVert = (config & CFG_SCAN_VERT) != 0;
+                    bool isLsb = (config & CFG_BIT_LSB) != 0;
+                    int stride = isVert ? (canvasH + 7) / 8 : (canvasW + 7) / 8;
+
+                    for (int i = 0; i < 256; i++)
+                        AsciiSet[i].Width = br.ReadByte();
+
+                    for (int i = 0; i < 256; i++)
+                    {
+                        byte[] data = br.ReadBytes(bpc);
+                        AsciiSet[i].Glyph?.Dispose();
+                        // 使用通用的 EncodeGlyph 的逆向逻辑：DecodeGlyph
+                        AsciiSet[i].Glyph = DecodeGlyph(data, canvasW, canvasH, isVert, isLsb, stride);
+                        AsciiSet[i].IsManual = true;
+                    }
+                }
+                return true;
+            }
+            catch { return false; }
+        }
+
+        // 补充私有解码函数
+        private Bitmap DecodeGlyph(byte[] data, int w, int h, bool vert, bool lsb, int stride)
+        {
+            Bitmap bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int mainIdx = vert ? x : y;
+                    int subIdx = vert ? y : x;
+                    int bytePos = mainIdx * stride + (subIdx / 8);
+                    int bitPos = lsb ? (subIdx % 8) : (7 - (subIdx % 8));
+
+                    if (bytePos < data.Length)
+                    {
+                        bool isOn = (data[bytePos] & (1 << bitPos)) != 0;
+                        bmp.SetPixel(x, y, isOn ? Color.White : Color.Black);
+                    }
+                }
+            }
+            return bmp;
         }
 
         // 增加 out 参数，确保尺寸能带回 UI
