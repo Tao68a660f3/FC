@@ -349,7 +349,7 @@ namespace FC.UI.Controls
                     {
                         // 调用 V2 导出方法
                         _mgr.SaveToBinV2(sfd.FileName, (int)numCanvasW.Value, (int)numCanvasH.Value, config);
-                        MessageBox.Show($"导出成功！\nConfig: 0x{config:X2}", "提示");
+                        MessageBox.Show($"导出成功！\nConfig: 0x{config:X2} {numCanvasW.Value} {numCanvasH.Value}", "提示");
                     }
                 }
             };
@@ -394,20 +394,24 @@ namespace FC.UI.Controls
             };
 
             // --- 画布响应 ---
-            // --- 核心修复：画布尺寸变更监听 ---
             EventHandler canvasSizeTrigger = (s, e) =>
             {
+                // --- 核心改进：非用户手动触发时不执行 Resize ---
+                // 如果两个框都没有焦点，说明是代码在 Import 过程中赋值，直接跳过逻辑
+                if (!numCanvasW.Focused && !numCanvasH.Focused)
+                    return;
+
                 int w = (int)numCanvasW.Value;
                 int h = (int)numCanvasH.Value;
 
-                // A. 更新编辑器控件的网格属性，确保 HandleMouse 坐标计算正确
+                // A. 更新编辑器控件尺寸属性
                 pixelEditor.CanvasW = w;
                 pixelEditor.CanvasH = h;
 
-                // B. 强制内存中的 256 个 Bitmap 重置尺寸并 Crop
+                // B. 手动缩放时，我们才调用 ResizeAll 这种会改动像素的操作
                 _mgr.ResizeAll(w, h);
 
-                // C. 刷新 UI 渲染
+                // C. 刷新预览
                 SyncUI(false);
             };
 

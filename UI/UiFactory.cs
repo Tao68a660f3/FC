@@ -17,22 +17,25 @@ namespace FC.UI
         {
             public PreciseNumericUpDown()
             {
-                // 默认让文本居中，更符合工具类 UI 的审美
                 this.TextAlign = HorizontalAlignment.Center;
             }
 
             protected override void OnMouseWheel(MouseEventArgs e)
             {
-                // 1. 强制将事件标记为已处理，彻底掐死 WinForms 默认的“一次滚3行”逻辑
+                // --- 核心修复：只有获得焦点时才响应滚轮 ---
+                // 这样当你导入 BIN 时，焦点在按钮上，鼠标悬停在框框上误滚也不会触发变更
+                if (!this.Focused)
+                    return;
+
+                // 1. 强制将事件标记为已处理
                 HandledMouseEventArgs hme = e as HandledMouseEventArgs;
                 if (hme != null)
                     hme.Handled = true;
 
-                // 2. 根据 Delta 方向手动计算数值
-                // e.Delta > 0 为向上滚动
+                // 2. 根据 Delta 方向手动计算数值 (这里你写得很棒，解决了默认滚太快的问题)
                 decimal newValue = this.Value + (e.Delta > 0 ? this.Increment : -this.Increment);
 
-                // 3. 边界检查，确保不会因越界抛出异常
+                // 3. 边界检查
                 if (newValue >= this.Minimum && newValue <= this.Maximum)
                 {
                     this.Value = newValue;

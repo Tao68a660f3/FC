@@ -305,41 +305,6 @@ namespace FC.Core
         }
 
         // --- 5. 协议导入 (BIN / FONT / BMP) ---
-
-        public bool ImportFromBin(string path, out int canvasW, out int canvasH)
-        {
-            canvasW = 16;
-            canvasH = 16;
-            try
-            {
-                using (BinaryReader br = new BinaryReader(File.OpenRead(path)))
-                {
-                    if (new string(br.ReadChars(4)) != "FONT")
-                        return false;
-                    canvasH = br.ReadByte();
-                    canvasW = br.ReadByte();
-                    int bpc = br.ReadUInt16(); // 每字符占用的字节数
-                    br.ReadBytes(8); // 跳过保留位
-
-                    for (int i = 0; i < 256; i++)
-                        AsciiSet[i].Width = br.ReadByte();
-
-                    for (int i = 0; i < 256; i++)
-                    {
-                        byte[] data = br.ReadBytes(bpc);
-                        AsciiSet[i].Glyph?.Dispose();
-                        // 关键：Convert1BppToBitmap 内部已经包含了 XOR i 和位解析逻辑
-                        AsciiSet[i].Glyph = Convert1BppToBitmap(data, canvasW, canvasH, false, i);
-                        AsciiSet[i].IsManual = true;
-                    }
-                }
-                return true;
-            }
-            catch { return false; }
-        }
-
-        // 修改 AsciiManager.cs 中的导入方法
-
         public bool ImportFromBinV2(string path, out int canvasW, out int canvasH, out byte config)
         {
             canvasW = 16;
@@ -355,6 +320,7 @@ namespace FC.Core
                     canvasH = br.ReadByte();
                     canvasW = br.ReadByte();
                     int bpc = br.ReadUInt16();
+
 
                     config = br.ReadByte(); // 读取 V2 配置字节 (偏移 0x08)
                     br.ReadBytes(7);        // 跳过剩余的 7 字节保留位
@@ -381,23 +347,39 @@ namespace FC.Core
             catch { return false; }
         }
 
-        // 补充私有解码函数
         private Bitmap DecodeGlyph(byte[] data, int w, int h, bool vert, bool lsb, int stride)
         {
+            // 显式创建指定尺寸的位图
             Bitmap bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            for (int y = 0; y < h; y++)
+
+            // 初始化背景为黑色
+            using (Graphics g = Graphics.FromImage(bmp))
             {
-                for (int x = 0; x < w; x++)
+                g.Clear(Color.Black);
+            }
+
+            int mainLimit = vert ? w : h; // 纵向扫描主轴是宽(x)，横向是高(y)
+            int subLimit = vert ? h : w;  // 纵向扫描副轴是高(y)，横向是宽(x)
+
+            for (int m = 0; m < mainLimit; m++)
+            {
+                for (int s = 0; s < subLimit; s++)
                 {
-                    int mainIdx = vert ? x : y;
-                    int subIdx = vert ? y : x;
-                    int bytePos = mainIdx * stride + (subIdx / 8);
-                    int bitPos = lsb ? (subIdx % 8) : (7 - (subIdx % 8));
+                    int bytePos = m * stride + (s / 8);
+                    int bitPos = lsb ? (s % 8) : (7 - (s % 8));
 
                     if (bytePos < data.Length)
                     {
                         bool isOn = (data[bytePos] & (1 << bitPos)) != 0;
-                        bmp.SetPixel(x, y, isOn ? Color.White : Color.Black);
+                        if (isOn)
+                        {
+                            // 还原回 X, Y 坐标
+                            int resX = vert ? m : s;
+                            int resY = vert ? s : m;
+
+                            if (resX < w && resY < h)
+                                bmp.SetPixel(resX, resY, Color.White);
+                        }
                     }
                 }
             }
