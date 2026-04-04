@@ -19,7 +19,7 @@ namespace FC.UI.Controls
         private TextBox txtAsciiChar, txtFontPath;
         private CheckBox chkLocked;
         private Button btnLoadTTF, btnApplyVector, btnApplyShift, btnBatchRender, btnSaveBin, btnUnlockAll;
-        private Button btnImportBin, btnImportBmp, btnImportFont;
+        private Button btnImportBin, btnImportBmp, btnImportFont, btnSyncAllWidth;
         private PixelEditorControl pixelEditor;
         // 协议配置
         private CheckBox chkWidthAbs;
@@ -66,39 +66,21 @@ namespace FC.UI.Controls
                 RowCount = 4,
                 Padding = new Padding(12)
             };
-            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 20F)); // 1. 画布
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 15F)); // 1. 画布
             leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 30F)); // 2. 矢量生成
-            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 18F)); // 3. 物理位移
-            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 32F)); // 4. 导航与执行
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 20F)); // 3. 物理位移
+            leftGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 35F)); // 4. 导航与执行
             mainTable.Controls.Add(leftGrid, 0, 0);
 
             // --- 1. 画布与协议 ---
             GroupBox gbCanvas = CreateModernGroupBox("画布与协议", 0);
             gbCanvas.Dock = DockStyle.Fill;
-            TableLayoutPanel canvasGrid = CreateGridContainer(3, 4);
+            TableLayoutPanel canvasGrid = CreateGridContainer(2, 4);
 
             numCanvasW = AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
             numCanvasW.Minimum = 1;
             numCanvasH = AddGridControl(canvasGrid, "画布高", 16, 0, 1);
             numCanvasH.Minimum = 1;
-            numActiveWidth = AddGridControl(canvasGrid, "有效宽", 8, 1, 0);
-            numActiveWidth.Minimum = 0;
-
-            // 新增：绝对宽度模式 CheckBox
-            chkWidthAbs = new CheckBox
-            {
-                Text = "绝对宽度",
-                ForeColor = TextGray,
-                // 关键点 1：只 Anchor 到左侧，防止文字在窄列里强制换行
-                Anchor = AnchorStyles.Left,
-                AutoSize = true,
-                Margin = new Padding(20, 0, 0, 0), // 左边给点留白，别挨数值框太紧
-                CheckAlign = ContentAlignment.MiddleLeft
-            };
-            // 关键点 2：放在第 2 行（索引 1）、第 3 列（索引 2）
-            canvasGrid.Controls.Add(chkWidthAbs, 2, 1);
-            // 关键点 3：设置跨 2 列，把第 3、4 列的空间合并给它
-            canvasGrid.SetColumnSpan(chkWidthAbs, 2);
 
             // 新增：扫描方向与位序选择
             cmbScanDir = new ComboBox
@@ -111,8 +93,8 @@ namespace FC.UI.Controls
             };
             cmbScanDir.Items.AddRange(new string[] { "横向 (H)", "纵向 (V)" });
             cmbScanDir.SelectedIndex = 0;
-            canvasGrid.Controls.Add(new Label { Text = "方向", ForeColor = TextGray, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 0, 2);
-            canvasGrid.Controls.Add(cmbScanDir, 1, 2);
+            canvasGrid.Controls.Add(new Label { Text = "方向", ForeColor = TextGray, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 0, 1);
+            canvasGrid.Controls.Add(cmbScanDir, 1, 1);
 
             cmbBitOrder = new ComboBox
             {
@@ -124,8 +106,8 @@ namespace FC.UI.Controls
             };
             cmbBitOrder.Items.AddRange(new string[] { "MSB First", "LSB First" });
             cmbBitOrder.SelectedIndex = 0;
-            canvasGrid.Controls.Add(new Label { Text = "位序", ForeColor = TextGray, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 2, 2);
-            canvasGrid.Controls.Add(cmbBitOrder, 3, 2);
+            canvasGrid.Controls.Add(new Label { Text = "位序", ForeColor = TextGray, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 2, 1);
+            canvasGrid.Controls.Add(cmbBitOrder, 3, 1);
 
             gbCanvas.Controls.Add(canvasGrid);
             leftGrid.Controls.Add(gbCanvas, 0, 0);
@@ -189,18 +171,117 @@ namespace FC.UI.Controls
             // --- 4. 导航与执行区 ---
             Panel runPanel = new Panel { Dock = DockStyle.Fill };
 
-            // 导航行 (Top)
-            TableLayoutPanel navGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 45, ColumnCount = 3, Padding = new Padding(5), BackColor = Color.FromArgb(45, 45, 48) };
-            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
-            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
-            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            // 导航行 (Top) - 高度设为 90 确保两行空间充裕，垂直居中不拥挤
+            TableLayoutPanel navGrid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                RowCount = 2,
+                ColumnCount = 4,
+                Padding = new Padding(5),
+                BackColor = Color.FromArgb(45, 45, 48)
+            };
 
-            numAsciiIdx = new PreciseNumericUpDown { Maximum = 255, Value = 65, Dock = DockStyle.Fill, BackColor = ControlBg, ForeColor = Color.Lime, Font = new Font("Consolas", 11F, FontStyle.Bold), TextAlign = HorizontalAlignment.Center };
-            txtAsciiChar = new TextBox { MaxLength = 1, Dock = DockStyle.Fill, BackColor = ControlBg, ForeColor = Color.Orange, TextAlign = HorizontalAlignment.Center, Font = new Font("微软雅黑", 11F, FontStyle.Bold) };
-            chkLocked = new CheckBox { Text = "锁定字符", ForeColor = Color.White, Dock = DockStyle.Fill, CheckAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0) };
+            // 定义列宽
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+
+            // 定义行高：两行平分，确保垂直居中空间
+            navGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            navGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+
+            // --- 第一行：索引导航 ---
+            numAsciiIdx = new PreciseNumericUpDown
+            {
+                Maximum = 255,
+                Value = 65,
+                Dock = DockStyle.Fill,
+                BackColor = ControlBg,
+                ForeColor = Color.Lime,
+                Font = new Font("Consolas", 11F, FontStyle.Bold),
+                TextAlign = HorizontalAlignment.Center,
+                Margin = new Padding(3, 5, 3, 5) // 上下 Margin 对齐
+            };
+
+            txtAsciiChar = new TextBox
+            {
+                MaxLength = 1,
+                Dock = DockStyle.Fill,
+                BackColor = ControlBg,
+                ForeColor = Color.Orange,
+                TextAlign = HorizontalAlignment.Center,
+                Font = new Font("微软雅黑", 11F, FontStyle.Bold),
+                Margin = new Padding(3, 5, 3, 5)
+            };
+
+            chkLocked = new CheckBox
+            {
+                Text = "锁定字符",
+                ForeColor = Color.White,
+                Dock = DockStyle.Fill,
+                CheckAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleLeft,
+            };
+
             navGrid.Controls.Add(numAsciiIdx, 0, 0);
             navGrid.Controls.Add(txtAsciiChar, 1, 0);
             navGrid.Controls.Add(chkLocked, 2, 0);
+
+            // --- 第二行：宽度控制 ---
+            // 1. 有效宽度标签 - 明确垂直居中
+            Label lblActiveWidth = new Label
+            {
+                Text = "有效宽",
+                ForeColor = Color.LightGray,
+                TextAlign = ContentAlignment.MiddleRight,
+                Dock = DockStyle.Fill
+            };
+            navGrid.Controls.Add(lblActiveWidth, 0, 1);
+
+            // 2. 有效宽度数值框
+            numActiveWidth = new PreciseNumericUpDown
+            {
+                Minimum = 0,
+                Maximum = 255,
+                Value = 8,
+                Dock = DockStyle.Fill,
+                BackColor = ControlBg,
+                ForeColor = Color.Cyan,
+                TextAlign = HorizontalAlignment.Center,
+                Margin = new Padding(3, 5, 3, 5)
+            };
+            navGrid.Controls.Add(numActiveWidth, 1, 1);
+
+            // 3. 同步全部按钮
+            btnSyncAllWidth = new Button
+            {
+                Text = "同步所有宽度",
+                ForeColor = Color.Black,
+                BackColor = Color.Gold, // 使用醒目的黄色
+                FlatStyle = FlatStyle.Flat,
+                Dock = DockStyle.Fill,
+                Font = new Font("微软雅黑", 9F, FontStyle.Bold),
+                Margin = new Padding(5, 5, 5, 5),
+                Cursor = Cursors.Hand
+            };
+            btnSyncAllWidth.FlatAppearance.BorderSize = 0;
+            navGrid.Controls.Add(btnSyncAllWidth, 3, 0);
+            navGrid.SetRowSpan(btnSyncAllWidth, 2);
+
+
+            // 4. 绝对宽度 CheckBox
+            chkWidthAbs = new CheckBox
+            {
+                Text = "绝对宽度",
+                ForeColor = Color.White,
+                Dock = DockStyle.Fill,
+                CheckAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            navGrid.Controls.Add(chkWidthAbs, 2, 1);
+
+            runPanel.Controls.Add(navGrid);
 
             // 按钮网格 (Fill)
             TableLayoutPanel btnGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 4 };
@@ -391,6 +472,19 @@ namespace FC.UI.Controls
             {
                 if (chkLocked.Focused)
                     _mgr.AsciiSet[_currentIdx].IsManual = chkLocked.Checked;
+            };
+
+            btnSyncAllWidth.Click += (s, e) => {
+                if (MessageBox.Show("是否将当前有效宽度应用到所有 256 个字符？", "批量同步",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    int targetWidth = (int)numActiveWidth.Value;
+                    for (int i = 0; i < 256; i++)
+                    {
+                        _mgr.AsciiSet[i].Width = targetWidth;
+                    }
+                    MessageBox.Show($"已同步所有字符宽度为: {targetWidth}", "成功");
+                }
             };
 
             // --- 画布响应 ---
