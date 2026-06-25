@@ -1,13 +1,10 @@
 ﻿#nullable disable
 
-using FC.UI;
 using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
-using System.Runtime.InteropServices; // ⚠️ 新增：调用底层 API 必须需要它
-using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace FC.Core
 {
@@ -20,7 +17,7 @@ namespace FC.Core
         MSBFirst, LSBFirst
     }
 
-    public class FontRender : IDisposable
+    public class FontRenderGdi : FontRenderBase
     {
         // =================================================================
         // 🛡️ Win32 纯净原生 GDI 沙盒与内存注入 API 声明大本营
@@ -134,25 +131,10 @@ namespace FC.Core
 
         //===========================================================
 
-        private PrivateFontCollection _pfc;
-        private Font _currentFont;
-        public ScanMode CurrentScanMode { get; set; } = ScanMode.Horizontal;
-        public BitOrder CurrentBitOrder { get; set; } = BitOrder.MSBFirst;
-
-        // 渲染配置
-        public int CanvasWidth { get; set; } = 16;
-        public int CanvasHeight { get; set; } = 16;
-        public int OffsetX { get; set; } = 0;
-        public int OffsetY { get; set; } = 0;
-
-        // --- 新增：百分比缩放属性 (默认 100 代表 100%) ---
-        public int ScaleX { get; set; } = 100;
-        public int ScaleY { get; set; } = 100;
-
         // 保持原有的内核长驻列表，防止 Win32 内核层死锁
         private static readonly HashSet<string> _registeredFontPaths = new HashSet<string>();
 
-        public void LoadFontFile(string path, float size)
+        public override void LoadFontFile(string path, float size)
         {
             if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
                 return;
@@ -191,16 +173,10 @@ namespace FC.Core
             }
         }
 
-        // 核心渲染函数：更新接口以匹配新需求
-        public byte[] RenderChar(string text)
-        {
-            return ConvertTo1Bpp(RenderCharToBitmap(text));
-        }
-
         // =================================================================
-        // 🚀 用这个全新重构的方法，替换掉你原本的那个 RenderCharToBitmap 即可！
+        // 🚀 原生 GDI 渲染实现
         // =================================================================
-        public Bitmap RenderCharToBitmap(string text)
+        public override Bitmap RenderCharToBitmap(string text)
         {
             // 1. 先把 C# 层的最终接收画布准备好
             Bitmap bmp = new Bitmap(CanvasWidth, CanvasHeight, PixelFormat.Format32bppArgb);
@@ -312,71 +288,6 @@ namespace FC.Core
             return bmp;
         }
 
-        // 后面原有的 ConvertTo1Bpp, IsPixelBlack, ApplyBit 保持不变...
-        public byte[] ConvertTo1Bpp(Bitmap bmp)
-        {
-            if (CurrentScanMode == ScanMode.Horizontal)
-            {
-                int bytesPerRow = (CanvasWidth + 7) / 8;
-                byte[] data = new byte[bytesPerRow * CanvasHeight];
-                for (int y = 0; y < CanvasHeight; y++)
-                {
-                    for (int x = 0; x < CanvasWidth; x++)
-                    {
-                        if (IsPixelBlack(bmp, x, y))
-                        {
-                            int byteIdx = y * bytesPerRow + (x / 8);
-                            int bitOffset = (x % 8);
-                            ApplyBit(data, byteIdx, bitOffset);
-                        }
-                    }
-                }
-                return data;
-            }
-            else
-            {
-                int bytesPerCol = (CanvasHeight + 7) / 8;
-                byte[] data = new byte[bytesPerCol * CanvasWidth];
-                for (int x = 0; x < CanvasWidth; x++)
-                {
-                    for (int y = 0; y < CanvasHeight; y++)
-                    {
-                        if (IsPixelBlack(bmp, x, y))
-                        {
-                            int byteIdx = x * bytesPerCol + (y / 8);
-                            int bitOffset = (y % 8);
-                            ApplyBit(data, byteIdx, bitOffset);
-                        }
-                    }
-                }
-                return data;
-            }
-        }
 
-        public bool IsPixelBlack(Bitmap bmp, int x, int y)
-        {
-            // 增加极致保险：如果坐标超出当前位图实际尺寸，直接判定为“背景（非黑）”
-            if (bmp == null || x < 0 || y < 0 || x >= bmp.Width || y >= bmp.Height)
-                return true;
-
-            Color c = bmp.GetPixel(x, y);
-            // 根据你的颜色定义：White 是字，黑色或其他是背景
-            // 判定 >= 128 确保即使是灰度像素也能被识别为“有像素”
-            return c.R <= 128 || c.G <= 128 || c.B <= 128;
-        }
-
-        private void ApplyBit(byte[] data, int byteIdx, int bitOffset)
-        {
-            if (CurrentBitOrder == BitOrder.MSBFirst)
-                data[byteIdx] |= (byte)(0x80 >> bitOffset);
-            else
-                data[byteIdx] |= (byte)(0x01 << bitOffset);
-        }
-
-        public void Dispose()
-        {
-            _currentFont?.Dispose();
-            _pfc?.Dispose();
-        }
     }
 }

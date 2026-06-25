@@ -6,9 +6,9 @@ namespace FC.Core
 {
     internal class GeneratorEngine
     {
-        private FontRender _renderer;
+        private IFontRender _renderer;
 
-        public GeneratorEngine(FontRender renderer)
+        public GeneratorEngine(IFontRender renderer)
         {
             _renderer = renderer;
         }

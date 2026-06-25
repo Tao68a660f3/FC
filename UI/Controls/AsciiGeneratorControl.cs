@@ -8,7 +8,7 @@ namespace FC.UI.Controls
     public partial class AsciiGeneratorControl : UserControl
     {
         private AsciiManager _mgr = new AsciiManager();
-        private FontRender _fontRender = new FontRender();
+        private IFontRender _fontRender;
         private int _currentIdx = 65;
         private string _lastTtfPath = "";
 
@@ -29,9 +29,10 @@ namespace FC.UI.Controls
 
         public AsciiGeneratorControl()
         {
-            DoubleBuffered = true;
+                        DoubleBuffered = true;
             BackColor = BgColor;
             Dock = DockStyle.Fill;
+            _fontRender = new FontRenderGdiPlus();
             InitResponsiveLayout();
             BindEvents();
 

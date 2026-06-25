@@ -119,7 +119,7 @@ namespace FC.Core
         }
 
         // --- 1. 矢量预览接口 (仅反映 FontRender 的参数效果) ---
-        public void UpdateVectorPreview(int idx, FontRender renderer)
+        public void UpdateVectorPreview(int idx, IFontRender renderer)
         {
             if (idx < 0 || idx > 255)
                 return;
@@ -169,7 +169,7 @@ namespace FC.Core
         }
 
         // --- 4. 矢量生成确认 (将矢量底稿写死到本体) ---
-        public void GenerateFromVector(int idx, FontRender renderer)
+        public void GenerateFromVector(int idx, IFontRender renderer)
         {
             if (idx < 0 || idx > 255)
                 return;
@@ -212,7 +212,7 @@ namespace FC.Core
         }
 
         // --- 4. 批量与管理 ---
-        public void BatchRender(FontRender renderer, bool forceAll)
+        public void BatchRender(IFontRender renderer, bool forceAll)
         {
             for (int i = 0; i < 256; i++)
             {

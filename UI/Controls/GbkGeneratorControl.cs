@@ -13,13 +13,13 @@ namespace FC.UI.Controls
 {
     public partial class GbkGeneratorControl : UserControl
     {
-        private FontRender _renderer = new FontRender();
+        private IFontRender _renderer;
         private GeneratorEngine _engine;
 
         // 成员变量声明 (修复之前的漏定义)
         private TextBox txtFontPath, txtPreviewInput;
         private PreciseNumericUpDown numFontSize, numCanvasW, numCanvasH, numOffsetX, numOffsetY, numScaleX, numScaleY;
-        private ComboBox cmbScanMode, cmbBitOrder, cmbEncoding;
+        private ComboBox cmbScanMode, cmbBitOrder, cmbEncoding, cmbRenderEngine;
         private PictureBox picPreview;
         private Label lblStatus, lblFileSizeMsg;
         private Button btnGo; // 定义在这里
@@ -31,6 +31,7 @@ namespace FC.UI.Controls
             BackColor = Color.FromArgb(32, 32, 32);
             ForeColor = Color.White;
 
+            _renderer = new FontRenderGdi();
             _engine = new GeneratorEngine(_renderer);
             InitResponsiveLayout();
 
@@ -155,15 +156,15 @@ namespace FC.UI.Controls
             TableLayoutPanel exportGrid = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 3,
+                                ColumnCount = 2,
+                RowCount = 4,
                 Padding = new Padding(10)
             };
 
-            // 显式定义行高，让三行平分 GroupBox 的高度
+            // 显式定义行高，让四行平分 GroupBox 的高度
             exportGrid.RowStyles.Clear();
-            for (int i = 0; i < 3; i++)
-                exportGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
+            for (int i = 0; i < 4; i++)
+                exportGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 25F));
 
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
@@ -173,6 +174,10 @@ namespace FC.UI.Controls
             cmbEncoding = AddGridCombo(exportGrid, "编码", null, 2);
             cmbEncoding.Items.AddRange(new string[] { "GBK_Custom_22084", "GB2312_Standard" });
             cmbEncoding.SelectedIndex = 0;
+
+            cmbRenderEngine = AddGridCombo(exportGrid, "渲染", null, 3);
+            cmbRenderEngine.Items.AddRange(new[] { "原生 GDI", "托管 GDI+" });
+            cmbRenderEngine.SelectedIndex = 0;
             gb3.Controls.Add(exportGrid);
             leftGrid.Controls.Add(gb3, 0, 2);
 
@@ -211,7 +216,24 @@ namespace FC.UI.Controls
             txtPreviewInput.TextChanged += (s, e) => update();
             cmbScanMode.SelectedIndexChanged += (s, e) => update();
             cmbBitOrder.SelectedIndexChanged += (s, e) => update();
+            cmbRenderEngine.SelectedIndexChanged += (s, e) =>
+            {
+                SwitchRenderer(cmbRenderEngine.SelectedIndex);
+                update();
+            };
             Resize += (s, e) => UpdatePreview(); // 窗口缩放时重绘预览图
+        }
+
+        private void SwitchRenderer(int index)
+        {
+            _renderer?.Dispose();
+            _renderer = index switch
+            {
+                0 => new FontRenderGdi(),
+                1 => new FontRenderGdiPlus(),
+                _ => new FontRenderGdi()
+            };
+            _engine = new GeneratorEngine(_renderer);
         }
 
         private void UpdatePreview()
