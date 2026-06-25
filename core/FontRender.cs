@@ -22,38 +22,6 @@ namespace FC.Core
 
     public class FontRender : IDisposable
     {
-        private PrivateFontCollection _pfc;
-        private Font _currentFont;
-        public ScanMode CurrentScanMode { get; set; } = ScanMode.Horizontal;
-        public BitOrder CurrentBitOrder { get; set; } = BitOrder.MSBFirst;
-
-        // 渲染配置
-        public int CanvasWidth { get; set; } = 16;
-        public int CanvasHeight { get; set; } = 16;
-        public int OffsetX { get; set; } = 0;
-        public int OffsetY { get; set; } = 0;
-
-        // --- 新增：百分比缩放属性 (默认 100 代表 100%) ---
-        public int ScaleX { get; set; } = 100;
-        public int ScaleY { get; set; } = 100;
-
-        public void LoadFontFile(string path, float size)
-        {
-            _currentFont?.Dispose();
-
-            // 🚀 【核心修正】：绝对不要在这里销毁旧的 _pfc！
-            // 只有在 _pfc 真的为 null 时才需要实例化，或者每次覆盖它，但必须保持它的物理内存长存。
-            if (_pfc == null)
-            {
-                _pfc = new PrivateFontCollection();
-            }
-
-            _pfc.AddFontFile(path);
-
-            // 保证提取出来的 FontFamily 底层物理指针对接给原生 GDI 时是完好无损的
-            _currentFont = new Font(_pfc.Families[_pfc.Families.Length - 1], size, FontStyle.Regular, GraphicsUnit.Pixel);
-        }
-
         // =================================================================
         // 🛡️ Win32 纯净原生 GDI 沙盒与内存注入 API 声明大本营
         // =================================================================
@@ -120,6 +88,15 @@ namespace FC.Core
             IntPtr hdc, IntPtr hbmp, uint uStartScan, uint cScanLines,
             [Out] IntPtr lpvBits, ref BITMAPINFO lpbmi, uint uUsage);
 
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+        private static extern int AddFontResourceExW(string lpszFilename, uint fl, IntPtr pdv);
+
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool RemoveFontResourceExW(string lpszFilename, uint fl, IntPtr pdv);
+
+        // 常量定义：FR_PRIVATE 代表该字体仅对当前进程可见，程序关闭或卸载时自动销毁
+        private const uint FR_PRIVATE = 0x10;
+
 
         // =================================================================
         // 📦 依赖的 Win32 原生辅助结构体（直接嵌在类内作为私有成员）
@@ -155,8 +132,65 @@ namespace FC.Core
             public uint bmiColors; // 32位真彩色，由于不使用调色板，只留出首个单元占位即可
         }
 
-
         //===========================================================
+
+        private PrivateFontCollection _pfc;
+        private Font _currentFont;
+        public ScanMode CurrentScanMode { get; set; } = ScanMode.Horizontal;
+        public BitOrder CurrentBitOrder { get; set; } = BitOrder.MSBFirst;
+
+        // 渲染配置
+        public int CanvasWidth { get; set; } = 16;
+        public int CanvasHeight { get; set; } = 16;
+        public int OffsetX { get; set; } = 0;
+        public int OffsetY { get; set; } = 0;
+
+        // --- 新增：百分比缩放属性 (默认 100 代表 100%) ---
+        public int ScaleX { get; set; } = 100;
+        public int ScaleY { get; set; } = 100;
+
+        // 保持原有的内核长驻列表，防止 Win32 内核层死锁
+        private static readonly HashSet<string> _registeredFontPaths = new HashSet<string>();
+
+        public void LoadFontFile(string path, float size)
+        {
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+                return;
+
+            try
+            {
+                // 1. 【核心修正】：彻底物理粉碎旧的托管字体和整个 PFC 集合，斩断追加污染！
+                _currentFont?.Dispose();
+                _pfc?.Dispose();
+
+                // 2. 每次加载都给它一个绝对纯净、没有任何历史包袱的全新家园
+                _pfc = new PrivateFontCollection();
+                _pfc.AddFontFile(path);
+
+                if (_pfc.Families.Length == 0)
+                    return;
+
+                // 3. 稳妥提取当前唯一的这个 FontFamily
+                FontFamily currentFamily = _pfc.Families[0];
+                _currentFont = new Font(currentFamily, size, FontStyle.Regular, GraphicsUnit.Pixel);
+
+                // 4. Win32 内核层长驻注册（确保 CreateFontW 认识它，此操作不受 PFC 销毁影响）
+                if (!_registeredFontPaths.Contains(path))
+                {
+                    int result = AddFontResourceExW(path, FR_PRIVATE, IntPtr.Zero);
+                    if (result > 0)
+                    {
+                        _registeredFontPaths.Add(path);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 捕捉可能的 IO 或字库文件损坏异常，防止界面崩溃
+                System.Diagnostics.Debug.WriteLine($"字体加载失败: {ex.Message}");
+            }
+        }
+
         // 核心渲染函数：更新接口以匹配新需求
         public byte[] RenderChar(string text)
         {
@@ -184,7 +218,15 @@ namespace FC.Core
 
             int drawX = (int)Math.Round(OffsetX / sx);
             int drawY = (int)Math.Round(OffsetY / sy);
+            // 🚀 【核心修正】：完美兼容系统内置字体与第三方外置 TTF 文件
             string fontName = _currentFont.FontFamily.Name;
+
+            // 如果你使用了 PrivateFontCollection 加载外部文件，且集合里有有效的字体族
+            if (_pfc != null && _pfc.Families.Length > 0)
+            {
+                // 优先提取外部字库在 Windows 内存中注册的真实原生名称
+                fontName = _pfc.Families[_pfc.Families.Length - 1].Name;
+            }
 
             // 3. 彻底进入独立的 Win32 原生纯净 GDI 沙盒
             IntPtr screenDC = GetDC(IntPtr.Zero);
