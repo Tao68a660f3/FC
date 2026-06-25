@@ -40,7 +40,8 @@ namespace FC.UI.Controls
         private void GbkGeneratorControl_Load(object sender, EventArgs e)
         {
             string defaultFont = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "simsun.ttc");
-            if (File.Exists(defaultFont)) txtFontPath.Text = defaultFont;
+            if (File.Exists(defaultFont))
+                txtFontPath.Text = defaultFont;
 
             BindEvents();
             UpdatePreview();
@@ -89,7 +90,8 @@ namespace FC.UI.Controls
             btnBrowse.Click += (s, e) =>
             {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.otf;*.ttc" })
-                    if (ofd.ShowDialog() == DialogResult.OK) txtFontPath.Text = ofd.FileName;
+                    if (ofd.ShowDialog() == DialogResult.OK)
+                        txtFontPath.Text = ofd.FileName;
             };
             fontGrid.Controls.Add(txtFontPath, 0, 0);
             fontGrid.Controls.Add(btnBrowse, 1, 0);
@@ -127,7 +129,7 @@ namespace FC.UI.Controls
             numCanvasW.Minimum = 1;
             numCanvasH = AddGridControl(renderGrid, "高", 16, 1, 1);
             numCanvasH.Minimum = 1;
-            numOffsetX = AddGridControl(renderGrid, "移X", -3, 2, 0);
+            numOffsetX = AddGridControl(renderGrid, "移X", 0, 2, 0);
             numOffsetY = AddGridControl(renderGrid, "移Y", 0, 2, 1);
 
             // --- 第 3 行：百分比缩放 ---
@@ -160,7 +162,8 @@ namespace FC.UI.Controls
 
             // 显式定义行高，让三行平分 GroupBox 的高度
             exportGrid.RowStyles.Clear();
-            for (int i = 0; i < 3; i++) exportGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
+            for (int i = 0; i < 3; i++)
+                exportGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
 
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             exportGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
@@ -213,7 +216,8 @@ namespace FC.UI.Controls
 
         private void UpdatePreview()
         {
-            if (!File.Exists(txtFontPath.Text) || string.IsNullOrEmpty(txtPreviewInput.Text)) return;
+            if (!File.Exists(txtFontPath.Text) || string.IsNullOrEmpty(txtPreviewInput.Text))
+                return;
 
             try
             {
@@ -233,25 +237,64 @@ namespace FC.UI.Controls
 
                 byte[] data = _renderer.RenderChar(txtPreviewInput.Text.Substring(0, 1));
 
-                // 绘制预览图
+                // =================================================================
+                // 🚀 改造后的动态尺寸预览图绘制段
+                // =================================================================
+
+                // 1. 获取当前字体的单点阵屏宽高
                 int w = _renderer.CanvasWidth;
                 int h = _renderer.CanvasHeight;
-                Bitmap bmp = new Bitmap(512, 512); // 使用固定大尺寸画布，靠 SizeMode.Zoom 适配
-                int blockSize = 512 / Math.Max(w, h);
 
-                using (Graphics g = Graphics.FromImage(bmp))
+                // 2. 定义你指定的常数：BlockSize 为 10，Block间距（网格线）为 2
+                const int zoom = 15;      // 对应你的 BlockSize
+                const int spacing = 1;   // 像素点之间的格线间距
+
+                // 3. 【核心改动】：动态计算刚好包裹住该点阵的画布尺寸
+                // 每一个网格单元占 (zoom + spacing) 像素，最后再加上一个间距封边
+                int totalW = w * (zoom + spacing) + spacing;
+                int totalH = h * (zoom + spacing) + spacing;
+
+                // 4. 根据计算出的实际尺寸动态创建画布，从此告别固定的 512!
+                Bitmap bmp = new Bitmap(totalW, totalH);
+
+                // 提前创建暗色背景刷，避免在循环中频繁 new 导致垃圾回收（GC）压力
+                using (Brush darkBrush = new SolidBrush(Color.FromArgb(30, 30, 30)))
                 {
-                    g.Clear(Color.Black);
-                    for (int y = 0; y < h; y++)
+                    using (Graphics g = Graphics.FromImage(bmp))
                     {
-                        for (int x = 0; x < w; x++)
+                        // 刷纯黑底色
+                        g.Clear(Color.Black);
+
+                        for (int y = 0; y < h; y++)
                         {
-                            bool isSet = GetBitFromData(data, x, y, w, h);
-                            if (isSet) g.FillRectangle(Brushes.Lime, x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
-                            else g.FillRectangle(new SolidBrush(Color.FromArgb(30, 30, 30)), x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
+                            // 准确计算当前行像素点的 Y 坐标（带间距偏移）
+                            int pixelY = spacing + y * (zoom + spacing);
+
+                            for (int x = 0; x < w; x++)
+                            {
+                                // 准确计算当前列像素点的 X 坐标（带间距偏移）
+                                int pixelX = spacing + x * (zoom + spacing);
+
+                                // 从底层的二进制 Hex 数组中提取该像素是亮还是灭
+                                bool isSet = GetBitFromData(data, x, y, w, h);
+
+                                if (isSet)
+                                {
+                                    // 亮（绿光）：留出 1 像素的空隙 (zoom - 1)，保证有网格感
+                                    g.FillRectangle(Brushes.Lime, pixelX, pixelY, zoom, zoom);
+                                }
+                                else
+                                {
+                                    // 灭（微亮暗灰）：代表没有点亮的 LED 灯珠底色
+                                    g.FillRectangle(darkBrush, pixelX, pixelY, zoom, zoom);
+                                }
+                            }
                         }
                     }
                 }
+
+                // 5. 塞给界面控件，继续保持 picPreview 的 SizeMode = Zoom（或者 StretchImage）
+                // 这样不管路牌的分辨率怎么变，画面都会以最完美的“完美像素块”比例等比缩放贴合你的窗口
                 picPreview.Image = bmp;
             }
             catch { }
@@ -284,7 +327,8 @@ namespace FC.UI.Controls
                 : new GbkCustomProvider();
 
             int charCount = 0;
-            foreach (var _ in tempProvider.GetEncodingStream()) charCount++;
+            foreach (var _ in tempProvider.GetEncodingStream())
+                charCount++;
 
             // 计算单个字符占用的字节数
             // 横向扫描：每行字节数 * 行数；纵向扫描：每列字节数 * 列数

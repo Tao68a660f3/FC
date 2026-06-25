@@ -1,15 +1,24 @@
 ﻿#nullable disable
 
+using FC.UI;
 using System;
 using System.Drawing;
-using System.Drawing.Text;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Drawing.Text;
+using System.Runtime.InteropServices; // ⚠️ 新增：调用底层 API 必须需要它
+using System.Windows.Forms;
 
 namespace FC.Core
 {
-    public enum ScanMode { Horizontal, Vertical }
-    public enum BitOrder { MSBFirst, LSBFirst }
+    public enum ScanMode
+    {
+        Horizontal, Vertical
+    }
+    public enum BitOrder
+    {
+        MSBFirst, LSBFirst
+    }
 
     public class FontRender : IDisposable
     {
@@ -31,47 +40,234 @@ namespace FC.Core
         public void LoadFontFile(string path, float size)
         {
             _currentFont?.Dispose();
-            _pfc?.Dispose();
-            _pfc = new PrivateFontCollection();
+
+            // 🚀 【核心修正】：绝对不要在这里销毁旧的 _pfc！
+            // 只有在 _pfc 真的为 null 时才需要实例化，或者每次覆盖它，但必须保持它的物理内存长存。
+            if (_pfc == null)
+            {
+                _pfc = new PrivateFontCollection();
+            }
+
             _pfc.AddFontFile(path);
-            _currentFont = new Font(_pfc.Families[0], size, FontStyle.Regular, GraphicsUnit.Pixel);
+
+            // 保证提取出来的 FontFamily 底层物理指针对接给原生 GDI 时是完好无损的
+            _currentFont = new Font(_pfc.Families[_pfc.Families.Length - 1], size, FontStyle.Regular, GraphicsUnit.Pixel);
         }
 
+        // =================================================================
+        // 🛡️ Win32 纯净原生 GDI 沙盒与内存注入 API 声明大本营
+        // =================================================================
+
+        // --- 1. 常量定义 ---
+        private const int GM_ADVANCED = 2;       // 开启高级 2D 世界矩阵模式
+        private const uint DIB_RGB_COLORS = 0;   // 告知 GetDIBits 直接使用原始 RGB 颜色格式
+
+        // --- 2. 图形上下文与画布创建 API ---
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDC(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int nWidth, int nHeight);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteDC(IntPtr hdc);
+
+        // --- 3. 字体、画刷创建与画布绘制 API ---
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreateFontW(
+            int nHeight, int nWidth, int nEscapement, int nOrientation,
+            int fnWeight, uint fdwItalic, uint fdwUnderline, uint fdwStrikeOut,
+            uint fdwCharSet, uint fdwOutputPrecision, uint fdwClipPrecision,
+            uint fdwQuality, uint fdwPitchAndFamily, string lpszFace);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateSolidBrush(uint crColor);
+
+        [DllImport("user32.dll")]
+        private static extern int FillRect(IntPtr hDC, ref RECT lprc, IntPtr hBrush);
+
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool TextOutW(IntPtr hdc, int x, int y, string lpString, int length);
+
+        // --- 4. GDI 对象控制与渲染模式 API ---
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        [DllImport("gdi32.dll")]
+        private static extern uint SetTextColor(IntPtr hdc, uint crColor);
+
+        [DllImport("gdi32.dll")]
+        private static extern int SetBkMode(IntPtr hdc, int mode);
+
+        [DllImport("gdi32.dll")]
+        private static extern int SetGraphicsMode(IntPtr hdc, int iMode);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool SetWorldTransform(IntPtr hdc, ref XFORM lpxform);
+
+        // --- 5. 核心像素搬运：绕过 Graphics 注入内存的 API ---
+        [DllImport("gdi32.dll")]
+        private static extern int GetDIBits(
+            IntPtr hdc, IntPtr hbmp, uint uStartScan, uint cScanLines,
+            [Out] IntPtr lpvBits, ref BITMAPINFO lpbmi, uint uUsage);
+
+
+        // =================================================================
+        // 📦 依赖的 Win32 原生辅助结构体（直接嵌在类内作为私有成员）
+        // =================================================================
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left; public int Top; public int Right; public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XFORM
+        {
+            public float eM11; public float eM12;
+            public float eM21; public float eM22;
+            public float eDx; public float eDy;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BITMAPINFOHEADER
+        {
+            public uint biSize; public int biWidth; public int biHeight;
+            public ushort biPlanes; public ushort biBitCount; public uint biCompression;
+            public uint biSizeImage; public int biXPelsPerMeter; public int biYPelsPerMeter;
+            public uint biClrUsed; public uint biClrImportant;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BITMAPINFO
+        {
+            public BITMAPINFOHEADER bmiHeader;
+            public uint bmiColors; // 32位真彩色，由于不使用调色板，只留出首个单元占位即可
+        }
+
+
+        //===========================================================
         // 核心渲染函数：更新接口以匹配新需求
         public byte[] RenderChar(string text)
         {
             return ConvertTo1Bpp(RenderCharToBitmap(text));
         }
 
+        // =================================================================
+        // 🚀 用这个全新重构的方法，替换掉你原本的那个 RenderCharToBitmap 即可！
+        // =================================================================
         public Bitmap RenderCharToBitmap(string text)
         {
+            // 1. 先把 C# 层的最终接收画布准备好
             Bitmap bmp = new Bitmap(CanvasWidth, CanvasHeight, PixelFormat.Format32bppArgb);
-            using (Graphics g = Graphics.FromImage(bmp))
+            if (_currentFont == null)
+                return bmp;
+
+            // 2. 提前计算缩放矩阵参数
+            int baseHeight = (int)Math.Round(_currentFont.Size);
+            float sx = ScaleX / 100.0f;
+            float sy = ScaleY / 100.0f;
+            if (sx <= 0.001f)
+                sx = 0.01f;
+            if (sy <= 0.001f)
+                sy = 0.01f;
+
+            int drawX = (int)Math.Round(OffsetX / sx);
+            int drawY = (int)Math.Round(OffsetY / sy);
+            string fontName = _currentFont.FontFamily.Name;
+
+            // 3. 彻底进入独立的 Win32 原生纯净 GDI 沙盒
+            IntPtr screenDC = GetDC(IntPtr.Zero);
+            IntPtr memDC = CreateCompatibleDC(screenDC);
+            IntPtr memBitmap = CreateCompatibleBitmap(screenDC, CanvasWidth, CanvasHeight);
+            IntPtr hOldBmp = SelectObject(memDC, memBitmap);
+
+            try
             {
-                g.Clear(Color.White);
-                g.SmoothingMode = SmoothingMode.None;
-                g.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
+                // 4. 原生 GDI 刷白背景
+                IntPtr hBrush = CreateSolidBrush(0x00FFFFFF); // 纯白
+                RECT rect = new RECT { Left = 0, Top = 0, Right = CanvasWidth, Bottom = CanvasHeight };
+                [DllImport("user32.dll")] static extern int FillRect(IntPtr hDC, ref RECT lprc, IntPtr hBrush);
+                FillRect(memDC, ref rect, hBrush);
+                DeleteObject(hBrush);
 
-                // --- 1. 计算缩放系数 ---
-                float sx = ScaleX / 100.0f;
-                float sy = ScaleY / 100.0f;
+                // 5. 原生 GDI 创建硬核无抗锯齿宋体
+                IntPtr hFont = CreateFontW(
+                    baseHeight, 0, 0, 0,
+                    _currentFont.Bold ? 700 : 400, _currentFont.Italic ? 1u : 0u,
+                    0, 0, 1, 0, 0, 3, 0, fontName
+                );
+                IntPtr hOldFont = SelectObject(memDC, hFont);
+                SetTextColor(memDC, 0x00000000); // 纯黑字
+                SetBkMode(memDC, 1);             // 透明
 
-                // --- 2. 应用缩放变换 ---
-                // 使用矩阵可以更稳定地控制缩放
-                g.ScaleTransform(sx, sy);
+                // 6. 施加高级世界矩阵 X/Y 轴形变
+                const int GM_ADVANCED = 2;
+                SetGraphicsMode(memDC, GM_ADVANCED);
+                XFORM xform = new XFORM { eM11 = sx, eM12 = 0, eM21 = 0, eM22 = sy, eDx = 0, eDy = 0 };
+                SetWorldTransform(memDC, ref xform);
 
-                // --- 3. 绘制文字 ---
-                // 关键：为了让 OffsetX/Y 保持物理像素感，绘图坐标需要除以缩放系数
-                float drawX = OffsetX / sx;
-                float drawY = OffsetY / sy;
+                // 7. 画字（此时字已经完美躺在内存 memBitmap 里面了）
+                TextOutW(memDC, drawX, drawY, text, text.Length);
 
-                using (Brush b = new SolidBrush(Color.Black))
+                // =================================================================
+                // 🚀 【名场面：纯内存指针越过 Graphics 强行灌入像素】
+                // =================================================================
+
+                // 8. 锁定 C# Bitmap 的底层物理内存，拿到它的首地址指针
+                BitmapData bmpData = bmp.LockBits(
+                    new Rectangle(0, 0, CanvasWidth, CanvasHeight),
+                    ImageLockMode.WriteOnly,
+                    PixelFormat.Format32bppArgb
+                );
+
+                try
                 {
-                    g.DrawString(text, _currentFont, b, drawX, drawY);
+                    // 配置读取协议：我们需要把 GDI 的位图转化为 32 位带有 Alpha 通道的真彩色像素块
+                    BITMAPINFO bmi = new BITMAPINFO();
+                    bmi.bmiHeader.biSize = (uint)Marshal.SizeOf(typeof(BITMAPINFOHEADER));
+                    bmi.bmiHeader.biWidth = CanvasWidth;
+                    // 💡 关键细节：Windows 传统的 DIB 位图纵坐标是反的（自底向上）。
+                    // 传入负的高度值（-CanvasHeight）可以让操作系统自动帮我们把图像上下翻转过来，对齐 C# 坐标系！
+                    bmi.bmiHeader.biHeight = -CanvasHeight;
+                    bmi.bmiHeader.biPlanes = 1;
+                    bmi.bmiHeader.biBitCount = 32; // 32位 4字节 RGB
+                    bmi.bmiHeader.biCompression = 0; // BI_RGB（不压缩）
+
+                    // 9. 核心搬运：绕过所有托管限制，直接将 GDI 像素阵列吐进 C# 内存指针 bmpData.Scan0 
+                    const uint DIB_RGB_COLORS = 0;
+                    GetDIBits(memDC, memBitmap, 0, (uint)CanvasHeight, bmpData.Scan0, ref bmi, DIB_RGB_COLORS);
+                }
+                finally
+                {
+                    // 10. 搬运完毕，立刻解锁
+                    bmp.UnlockBits(bmpData);
                 }
 
-                return bmp;
+                // 清理 GDI 字体
+                SelectObject(memDC, hOldFont);
+                DeleteObject(hFont);
             }
+            finally
+            {
+                // 11. 释放所有原生 GDI 对象
+                SelectObject(memDC, hOldBmp);
+                DeleteObject(memBitmap);
+                DeleteDC(memDC);
+                ReleaseDC(IntPtr.Zero, screenDC);
+            }
+
+            return bmp;
         }
 
         // 后面原有的 ConvertTo1Bpp, IsPixelBlack, ApplyBit 保持不变...
