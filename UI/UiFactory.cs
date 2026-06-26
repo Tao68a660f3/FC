@@ -83,7 +83,23 @@ namespace FC.UI
         }
 
         /// <summary>
-        /// 完整抽离 AddGridControl：处理 Label + PreciseNumericUpDown
+        /// 底层：创建统一配色的 PreciseNumericUpDown
+        /// </summary>
+        private static PreciseNumericUpDown CreatePreciseNumeric(decimal value, decimal min, decimal max)
+        {
+            return new PreciseNumericUpDown
+            {
+                Minimum = min,
+                Maximum = max,
+                Value = value,
+                BackColor = ControlBg,
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+        }
+
+        /// <summary>
+        /// 在 Grid 中放入 Label + PreciseNumericUpDown
         /// </summary>
         public static PreciseNumericUpDown AddGridControl(TableLayoutPanel grid, string labelText, int def, int row, int colGroup)
         {
@@ -100,16 +116,8 @@ namespace FC.UI
                 AutoSize = false
             };
 
-            PreciseNumericUpDown num = new PreciseNumericUpDown
-            {
-                Minimum = -512, // 扩大范围兼容偏移和缩放
-                Maximum = 1024,
-                Value = def,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                BackColor = ControlBg,
-                ForeColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
+            PreciseNumericUpDown num = CreatePreciseNumeric(def, -512, 1024);
+            num.Anchor = AnchorStyles.Left | AnchorStyles.Right;
 
             grid.Controls.Add(lbl, labelCol, row);
             grid.Controls.Add(num, controlCol, row);
@@ -117,7 +125,75 @@ namespace FC.UI
         }
 
         /// <summary>
-        /// 完整抽离 AddGridCombo：处理 Label + ComboBox
+        /// 创建带标签的 NumericUpDown 面板（适用于 FlowLayoutPanel）
+        /// </summary>
+        public static Panel CreateLabeledNumeric(string labelText, decimal value, decimal min, decimal max, int width = 60)
+        {
+            Panel panel = new Panel
+            {
+                Width = width + 10,
+                Height = 46,
+                Margin = new Padding(2, 0, 2, 0)
+            };
+            panel.Controls.Add(new Label
+            {
+                Text = labelText,
+                ForeColor = TextGray,
+                Location = new Point(0, 0),
+                Size = new Size(panel.Width, 16),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            PreciseNumericUpDown num = CreatePreciseNumeric(value, min, max);
+            num.Location = new Point(0, 18);
+            num.Width = panel.Width;
+            num.Font = new Font("Consolas", 9);
+            panel.Controls.Add(num);
+            return panel;
+        }
+
+        /// <summary>
+        /// 将已有控件包裹标签面板（适用于 FlowLayoutPanel，可持有控件引用）
+        /// </summary>
+        public static Panel WrapWithLabel(string labelText, Control control, int panelWidth = 70)
+        {
+            Panel panel = new Panel
+            {
+                Width = panelWidth,
+                Height = 46,
+                Margin = new Padding(2, 0, 2, 0)
+            };
+            panel.Controls.Add(new Label
+            {
+                Text = labelText,
+                ForeColor = TextGray,
+                Location = new Point(0, 0),
+                Size = new Size(panelWidth, 16),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            control.Location = new Point(0, 18);
+            control.Width = panelWidth;
+            if (control.Font == null || control.Font.Name == "Microsoft Sans Serif")
+                control.Font = new Font("Consolas", 9);
+            panel.Controls.Add(control);
+            return panel;
+        }
+
+        /// <summary>
+        /// 底层：创建统一配色的 ComboBox
+        /// </summary>
+        public static ComboBox CreateComboBase()
+        {
+            return new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = ControlBg,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+        }
+
+        /// <summary>
+        /// 在 Grid 中放入 Label + ComboBox（绑定枚举）
         /// </summary>
         public static ComboBox AddGridCombo(TableLayoutPanel grid, string labelText, Type enumType, int row)
         {
@@ -130,19 +206,9 @@ namespace FC.UI
                 AutoSize = false
             };
 
-            ComboBox cmb = new ComboBox
-            {
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = ControlBg,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-
+            ComboBox cmb = CreateComboBase();
             if (enumType != null && enumType.IsEnum)
-            {
                 cmb.DataSource = Enum.GetValues(enumType);
-            }
 
             grid.Controls.Add(lbl, 0, row);
             grid.Controls.Add(cmb, 1, row);
@@ -150,21 +216,74 @@ namespace FC.UI
         }
 
         /// <summary>
+        /// 在 Grid 中放入 Label + ComboBox（字符串数组）
+        /// </summary>
+        public static ComboBox AddGridComboItems(TableLayoutPanel grid, string labelText, string[] items, int row)
+        {
+            Label lbl = new Label
+            {
+                Text = labelText,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.TopRight,
+                ForeColor = TextGray,
+                AutoSize = false
+            };
+
+            ComboBox cmb = CreateComboBase();
+            cmb.Items.AddRange(items);
+            cmb.SelectedIndex = 0;
+
+            grid.Controls.Add(lbl, 0, row);
+            grid.Controls.Add(cmb, 1, row);
+            return cmb;
+        }
+
+        /// <summary>
+        /// 创建带标签的 ComboBox 面板（适用于 FlowLayoutPanel）
+        /// </summary>
+        public static Panel CreateLabeledCombo(string labelText, string[] items, int panelWidth = 110)
+        {
+            Panel panel = new Panel
+            {
+                Width = panelWidth,
+                Height = 46,
+                Margin = new Padding(2, 0, 2, 0)
+            };
+            panel.Controls.Add(new Label
+            {
+                Text = labelText,
+                ForeColor = TextGray,
+                Location = new Point(0, 0),
+                Size = new Size(panel.Width, 16),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            ComboBox cmb = CreateComboBase();
+            cmb.Items.AddRange(items);
+            cmb.SelectedIndex = 0;
+            cmb.Location = new Point(0, 18);
+            cmb.Width = panel.Width;
+            panel.Controls.Add(cmb);
+            return panel;
+        }
+
+        /// <summary>
         /// 创建统一样式的现代按钮
         /// </summary>
-        public static Button CreateStyledButton(string text, Color backColor, int height = 35)
+        public static Button CreateStyledButton(string text, Color backColor, int height = 35, bool dockTop = true)
         {
-            return new Button
+            Button btn = new Button
             {
                 Text = text,
                 Height = height,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = backColor,
                 ForeColor = Color.White,
-                Dock = DockStyle.Top,
                 Margin = new Padding(0, 5, 0, 0),
                 Cursor = Cursors.Hand
             };
+            if (dockTop)
+                btn.Dock = DockStyle.Top;
+            return btn;
         }
     }
 }

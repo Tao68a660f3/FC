@@ -29,7 +29,7 @@ namespace FC.UI.Controls
 
         public AsciiGeneratorControl()
         {
-                        DoubleBuffered = true;
+            DoubleBuffered = true;
             BackColor = BgColor;
             Dock = DockStyle.Fill;
             _fontRender = new FontRenderGdiPlus();
@@ -55,7 +55,7 @@ namespace FC.UI.Controls
 
             float scaleScaling = DeviceDpi / 150f;
 
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, (int)(420F * scaleScaling))); // 左侧控制
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, (int)(500F * scaleScaling))); // 左侧控制
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F)); // 右侧预览
             Controls.Add(mainTable);
 
@@ -80,8 +80,10 @@ namespace FC.UI.Controls
 
             numCanvasW = AddGridControl(canvasGrid, "画布宽", 16, 0, 0);
             numCanvasW.Minimum = 1;
+            numCanvasW.Maximum = 112;
             numCanvasH = AddGridControl(canvasGrid, "画布高", 16, 0, 1);
             numCanvasH.Minimum = 1;
+            numCanvasH.Maximum = 112;
 
             // 新增：扫描方向与位序选择
             cmbScanDir = new ComboBox
@@ -117,18 +119,32 @@ namespace FC.UI.Controls
             GroupBox gbVector = CreateModernGroupBox("矢量生成设置", 0);
             gbVector.Dock = DockStyle.Fill; // 确保填满第2行
 
-            TableLayoutPanel filePickGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = 42, ColumnCount = 2 };
+            TableLayoutPanel filePickGrid = new TableLayoutPanel { Dock = DockStyle.Top, Height = (int)(50F * scaleScaling), ColumnCount = 2 };
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72F));
             filePickGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28F));
-            txtFontPath = new TextBox { Dock = DockStyle.Fill, BackColor = ControlBg, ForeColor = Color.White, ReadOnly = true };
-            btnLoadTTF = new Button { Text = "选择字体", Dock = DockStyle.Fill, BackColor = Color.FromArgb(60, 60, 60), FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
+
+            // 1. 去掉 Fill，改为左右 Anchor，这样竖直方向就会自动居中
+            txtFontPath = new TextBox
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = ControlBg,
+                ForeColor = Color.White,
+                ReadOnly = true
+            };
+
+            btnLoadTTF = CreateStyledButton("选择字体", Color.FromArgb(60, 60, 60), (int)(40F * scaleScaling));
+            // 2. 按钮也同样设置左右 Anchor 保证居中
+            btnLoadTTF.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+
             filePickGrid.Controls.Add(txtFontPath, 0, 0);
             filePickGrid.Controls.Add(btnLoadTTF, 1, 0);
+
 
             TableLayoutPanel vectorGrid = CreateGridContainer(3, 4);
             vectorGrid.Dock = DockStyle.Fill; // 让参数网格自适应
             numFontSize = AddGridControl(vectorGrid, "字号", 16, 0, 0);
             numFontSize.Minimum = 1;
+            numFontSize.Maximum = 512;
             numFontOffsetX = AddGridControl(vectorGrid, "移X", 0, 1, 0);
             numFontOffsetY = AddGridControl(vectorGrid, "移Y", 0, 1, 1);
             numFontScaleX = AddGridControl(vectorGrid, "比X%", 100, 2, 0);
@@ -138,7 +154,7 @@ namespace FC.UI.Controls
             numFontScaleY.Minimum = 10;
             numFontScaleY.Maximum = 500;
 
-            btnApplyVector = CreateStyledButton("矢量像素推到底稿", Color.FromArgb(60, 120, 60), 38);
+            btnApplyVector = CreateStyledButton("矢量像素推到底稿", Color.FromArgb(60, 120, 60), (int)(40F * scaleScaling));
             btnApplyVector.Dock = DockStyle.Bottom;
 
             gbVector.Controls.Add(vectorGrid); // 先加 Fill
@@ -152,11 +168,11 @@ namespace FC.UI.Controls
             TableLayoutPanel shiftGrid = CreateGridContainer(1, 4);
             numShiftX = AddGridControl(shiftGrid, "平移X", 0, 0, 0);
             numShiftY = AddGridControl(shiftGrid, "平移Y", 0, 0, 1);
-            btnApplyShift = CreateStyledButton("应用物理位移", Color.FromArgb(120, 60, 60), 32);
+            btnApplyShift = CreateStyledButton("应用物理位移", Color.FromArgb(120, 60, 60), (int)(40F * scaleScaling));
             btnApplyShift.Dock = DockStyle.Bottom;
 
-            btnAutoCrop = CreateStyledButton("水平裁边", Color.FromArgb(45, 85, 115), 32);
-            btnAutoCenter = CreateStyledButton("自动居中", Color.FromArgb(45, 85, 115), 32);
+            btnAutoCrop = CreateStyledButton("水平裁边", Color.FromArgb(45, 85, 115), (int)(40F * scaleScaling));
+            btnAutoCenter = CreateStyledButton("自动居中", Color.FromArgb(45, 85, 115), (int)(40F * scaleScaling));
             // 创建一个容器横向放置这两个按钮
             TableLayoutPanel autoBtnGrid = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 40, ColumnCount = 2 };
             autoBtnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -178,15 +194,16 @@ namespace FC.UI.Controls
                 Dock = DockStyle.Top,
                 RowCount = 2,
                 ColumnCount = 4,
-                Padding = new Padding(5),
-                BackColor = Color.FromArgb(45, 45, 48)
+                Padding = new Padding(2),
+                BackColor = Color.FromArgb(45, 45, 48),
+                Height = (int)(100F * scaleScaling),
             };
 
             // 定义列宽
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
             navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
-            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35F));
-            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
+            navGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
 
             // 定义行高：两行平分，确保垂直居中空间
             navGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
@@ -244,7 +261,7 @@ namespace FC.UI.Controls
             numActiveWidth = new PreciseNumericUpDown
             {
                 Minimum = 0,
-                Maximum = 255,
+                Maximum = 112,
                 Value = 8,
                 Dock = DockStyle.Fill,
                 BackColor = ControlBg,
@@ -290,12 +307,12 @@ namespace FC.UI.Controls
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34F));
 
-            btnUnlockAll = CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), 32);
-            btnBatchRender = CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), 32);
-            btnImportBin = CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), 32);
-            btnImportBmp = CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), 32);
-            btnImportFont = CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), 32);
-            btnSaveBin = CreateStyledButton("🚀导出.bin", AccentBlue, 42);
+            btnUnlockAll = CreateStyledButton("🔓全部解锁", Color.FromArgb(80, 40, 40), (int)(40F * scaleScaling));
+            btnBatchRender = CreateStyledButton("批量矢量渲染", Color.FromArgb(70, 70, 70), (int)(40F * scaleScaling));
+            btnImportBin = CreateStyledButton("导入BIN", Color.FromArgb(50, 50, 50), (int)(40F * scaleScaling));
+            btnImportBmp = CreateStyledButton("导入BMP", Color.FromArgb(50, 50, 50), (int)(40F * scaleScaling));
+            btnImportFont = CreateStyledButton("导入FONT", Color.FromArgb(50, 50, 50), (int)(40F * scaleScaling));
+            btnSaveBin = CreateStyledButton("🚀导出.bin", AccentBlue, (int)(50F * scaleScaling));
 
             btnGrid.Controls.Add(btnUnlockAll, 0, 0);
             btnGrid.SetColumnSpan(btnUnlockAll, 3);
@@ -475,7 +492,8 @@ namespace FC.UI.Controls
                     _mgr.AsciiSet[_currentIdx].IsManual = chkLocked.Checked;
             };
 
-            btnSyncAllWidth.Click += (s, e) => {
+            btnSyncAllWidth.Click += (s, e) =>
+            {
                 if (MessageBox.Show("是否将当前有效宽度应用到所有 256 个字符？", "批量同步",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {

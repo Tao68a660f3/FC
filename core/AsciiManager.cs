@@ -518,7 +518,7 @@ namespace FC.Core
             {
                 for (int x = 0; x < w; x++)
                 {
-                    if (bmp.GetPixel(x, y).R > 128)
+                    if (x < bmp.Width && y < bmp.Height && bmp.GetPixel(x, y).R > 128)
                     {
                         int mainIdx = vert ? x : y;
                         int subIdx = vert ? y : x;

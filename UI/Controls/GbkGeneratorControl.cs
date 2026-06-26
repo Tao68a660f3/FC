@@ -87,7 +87,7 @@ namespace FC.UI.Controls
             fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
             fontGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             txtFontPath = new TextBox { Dock = DockStyle.Top, Margin = new Padding(5, 20, 5, 0), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White };
-            Button btnBrowse = new Button { Text = "浏览", Dock = DockStyle.Top, Height = 30, Margin = new Padding(5, 18, 5, 0), BackColor = Color.FromArgb(60, 60, 60), FlatStyle = FlatStyle.Flat };
+            Button btnBrowse = new Button { Text = "浏览", Dock = DockStyle.Top, Height = (int)(40F * scaleScaling), Margin = new Padding(5, 18, 5, 0), BackColor = Color.FromArgb(60, 60, 60), FlatStyle = FlatStyle.Flat };
             btnBrowse.Click += (s, e) =>
             {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "字体|*.ttf;*.otf;*.ttc" })
