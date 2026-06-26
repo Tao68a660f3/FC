@@ -35,6 +35,7 @@ namespace FC.UI.Controls
             _fontRender = new FontRenderGdiPlus();
             InitResponsiveLayout();
             BindEvents();
+            SetupShortcuts();
 
             // --- 核心修复：启动时强制同步 UI 状态 ---
             numAsciiIdx.Value = 65;
@@ -332,6 +333,33 @@ namespace FC.UI.Controls
 
             pixelEditor = new PixelEditorControl { Dock = DockStyle.Fill };
             mainTable.Controls.Add(pixelEditor, 1, 0);
+        }
+
+
+        private void SetupShortcuts()
+        {
+            // 快捷键管理，后续可在此扩展
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case (Keys)0xBD:  // OemMinus 主键盘 -（数字0右边的键）
+                    if (numAsciiIdx.Value > numAsciiIdx.Minimum)
+                        numAsciiIdx.Value -= 1;
+                    return true;
+
+                case (Keys)0xBB:  // OemPlus: 主键盘 =（不按 Shift，Backspace 左边的键）
+                    if (numAsciiIdx.Value < numAsciiIdx.Maximum)
+                        numAsciiIdx.Value += 1;
+                    return true;
+
+                case Keys.Space:      // 空格 → 矢量渲染
+                    btnApplyVector.PerformClick();
+                    return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void BindEvents()
