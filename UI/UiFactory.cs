@@ -186,6 +186,7 @@ namespace FC.UI
             return new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = ControlBg,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
